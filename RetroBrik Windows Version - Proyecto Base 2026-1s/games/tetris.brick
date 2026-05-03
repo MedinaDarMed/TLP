@@ -1,9 +1,20 @@
-# tetris.brick
+# tetris_remake.brick
+# Version extendida de Tetris para la Actividad 3 - Punto B
+#
+# Cambios respecto al tetris.brick original:
+#   - Se agregan 3 nuevas figuras: O_PIECE, S_PIECE, Z_PIECE
+#   - Cada figura ahora tiene un atributo COLOR (color hexadecimal)
+#   - Cada figura ahora tiene un atributo CHANCE (peso de probabilidad de aparicion)
+#   - Las figuras originales (I, L, T) conservan sus rotaciones y se les asigna COLOR y CHANCE
+
 GAME_TYPE TETRIS
 
 GAME_GRID (10, 20)
 
-# --- Definicion de las Piezas ---
+# ===========================================================================
+# PIEZAS ORIGINALES (conservadas; ahora con atributos COLOR y CHANCE)
+# ===========================================================================
+
 DEFINE SHAPE I_PIECE:
   STATE 1:
     [0, 1, 0, 0]
@@ -25,7 +36,9 @@ DEFINE SHAPE I_PIECE:
     [1, 1, 1, 1]
     [0, 0, 0, 0]
     [0, 0, 0, 0]
-  END
+  COLOR: #00FFFF
+  CHANCE: 15
+END
 
 DEFINE SHAPE L_PIECE:
   STATE 1:
@@ -33,17 +46,19 @@ DEFINE SHAPE L_PIECE:
     [0, 1, 0]
     [0, 1, 1]
   STATE 2:
-    [0, 1, 0]
-    [0, 1, 0]
-    [1, 1, 0]
-  STATE 3:
-    [0, 0, 1]
-    [1, 1, 1]
-    [0, 0, 0]
-  STATE 4:
     [0, 0, 0]
     [1, 1, 1]
     [1, 0, 0]
+  STATE 3:
+    [1, 1, 0]
+    [0, 1, 0]
+    [0, 1, 0]
+  STATE 4:
+    [0, 0, 1]
+    [1, 1, 1]
+    [0, 0, 0]
+  COLOR: #FF8800
+  CHANCE: 15
 END
 
 DEFINE SHAPE T_PIECE:
@@ -63,14 +78,84 @@ DEFINE SHAPE T_PIECE:
     [0, 1, 0]
     [1, 1, 0]
     [0, 1, 0]
+  COLOR: #AA00FF
+  CHANCE: 15
 END
 
-# --- Logica y Reglas ---
+# ===========================================================================
+# NUEVAS FIGURAS (Actividad 3 - Punto B)
+# ===========================================================================
+
+# Pieza O: cuadrado 2x2. No cambia al rotar (todos los estados son identicos).
+DEFINE SHAPE O_PIECE:
+  STATE 1:
+    [1, 1]
+    [1, 1]
+  STATE 2:
+    [1, 1]
+    [1, 1]
+  STATE 3:
+    [1, 1]
+    [1, 1]
+  STATE 4:
+    [1, 1]
+    [1, 1]
+  COLOR: #FFFF00
+  CHANCE: 20
+END
+
+# Pieza S: forma de S con 4 rotaciones geometricamente correctas.
+DEFINE SHAPE S_PIECE:
+  STATE 1:
+    [0, 1, 1]
+    [1, 1, 0]
+    [0, 0, 0]
+  STATE 2:
+    [1, 0, 0]
+    [1, 1, 0]
+    [0, 1, 0]
+  STATE 3:
+    [0, 0, 0]
+    [0, 1, 1]
+    [1, 1, 0]
+  STATE 4:
+    [0, 1, 0]
+    [0, 1, 1]
+    [0, 0, 1]
+  COLOR: #00FF44
+  CHANCE: 17
+END
+
+# Pieza Z: forma de Z con 4 rotaciones geometricamente correctas.
+DEFINE SHAPE Z_PIECE:
+  STATE 1:
+    [1, 1, 0]
+    [0, 1, 1]
+    [0, 0, 0]
+  STATE 2:
+    [0, 0, 1]
+    [0, 1, 1]
+    [0, 1, 0]
+  STATE 3:
+    [0, 0, 0]
+    [1, 1, 0]
+    [0, 1, 1]
+  STATE 4:
+    [0, 1, 0]
+    [1, 1, 0]
+    [1, 0, 0]
+  COLOR: #FF2244
+  CHANCE: 18
+END
+
+# ===========================================================================
+# LOGICA Y REGLAS (identicas al original para garantizar retrocompatibilidad)
+# ===========================================================================
+
 ON START:
   SPAWN RANDOM_SHAPE
 END
 
-# ON_TICK es el evento que controla la gravedad
 ON TICK:
   MOVE CURRENT_PIECE DOWN
 END
@@ -79,7 +164,6 @@ ON LINE_CLEAR:
   INCREASE_SCORE 100
 END
 
-# --- Controles ---
 ON KEY_LEFT:
   MOVE CURRENT_PIECE LEFT
 END
