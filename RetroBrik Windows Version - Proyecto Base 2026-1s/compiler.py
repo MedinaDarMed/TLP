@@ -1,56 +1,40 @@
-# compiler.py
-# Compilador universal para BrickScript (Version Extendida - Actividad 3 Punto B)
-#
-# CAMBIOS RESPECTO A LA VERSION ORIGINAL:
-# ============================================================
+# Cambios (Actividad 3 - Punto B):
 # 1. LEXER - funcion lexer():
 #    - La expresion regular de comentarios ahora preserva los colores hexadecimales
 #      (#RRGGBB) antes de eliminar el resto de lineas de comentario.
 #    - Se agrega el patron '#[0-9A-Fa-f]{6}' al token_regex para capturar
 #      colores hex como un solo token (ej. '#FF5733').
-#
 # 2. PARSER - clase Parser.__init__():
 #    - Se agregan dos nuevas claves al AST: 'shape_colors' y 'shape_chances'.
 #    - Esto permite almacenar los atributos de cada figura de forma separada,
 #      manteniendo 'shapes' con el formato original (lista de estados).
-#
 # 3. PARSER - metodo parsear_shape():
 #    - Despues de leer todos los estados (STATE), se intenta leer los atributos
 #      opcionales COLOR y CHANCE.
 #    - Si no estan presentes (archivo .brick antiguo), se asignan valores por
 #      defecto: color '#00FFFF' y chance 1.
-#    - RETROCOMPATIBILIDAD: el tetris.brick original compila sin errores porque
-#      los atributos COLOR y CHANCE son completamente opcionales.
-#
+
 # NOTA: El resto del codigo (parsear_tipo_juego, parsear_grid, parsear_evento,
 # generar_codigo y el bloque __main__) NO fue modificado.
-# ============================================================
 
 import sys
 import re
 import json
 
 def lexer(codigo_fuente):
-    # -----------------------------------------------------------------------
     # CAMBIO 1: Eliminar comentarios preservando colores hexadecimales.
-    #
     # Problema original: la expresion r'#.*' borraba todo desde '#' en adelante,
     # incluyendo valores como '#FF5733' usados en el atributo COLOR.
-    #
     # Solucion: el patron de comentario ahora usa un negative lookahead
     # (?![0-9A-Fa-f]{6}) para NO eliminar '#' cuando va seguido de exactamente
     # 6 caracteres hexadecimales (formato de color RGB).
-    # -----------------------------------------------------------------------
     codigo_fuente = re.sub(r'#(?![0-9A-Fa-f]{6}).*', '', codigo_fuente)
 
-    # -----------------------------------------------------------------------
     # CAMBIO 2: Capturar colores hexadecimales como un token completo.
-    #
     # Se agrega '#[0-9A-Fa-f]{6}' al inicio del alternation del regex para que
     # el lexer devuelva '#FF5733' como un unico token en lugar de fragmentos.
     # El orden importa: este patron debe ir ANTES que los demas para tener
     # prioridad cuando 're.findall' aplica el regex de izquierda a derecha.
-    # -----------------------------------------------------------------------
     token_regex = r'#[0-9A-Fa-f]{6}|\b[A-Z_]+\b|\d+|[\[\](),:]'
     tokens = re.findall(token_regex, codigo_fuente)
     return tokens
@@ -64,7 +48,7 @@ class Parser:
         # - 'shape_colors'  -> {nombre: '#RRGGBB'}             (NUEVO)
         # - 'shape_chances' -> {nombre: peso_entero}           (NUEVO)
         # Mantener 'shapes' en su formato original garantiza que el runtime
-        # antiguo (si alguien lo usa directamente) siga funcionando.
+        # antiguo siga funcionando.
         self.ast = {
             "tipo_juego":    None,
             "config":        {},
@@ -144,11 +128,9 @@ class Parser:
             estados.append(matriz)
 
         # CAMBIO 4: Leer atributos opcionales COLOR y CHANCE.
-        #
         # Se usan valores por defecto para garantizar retrocompatibilidad:
         # - color   = '#00FFFF' (cyan, igual al valor quemado del runtime original)
         # - chance  = 1         (peso neutro; todas las piezas tendran igual prob.)
-        #
         # El bucle lee tokens opcionales antes del END. Si el archivo .brick
         # antiguo no los tiene, se salta directamente al consumir('END').
         color  = '#00FFFF'  # valor por defecto (retrocompatible)
@@ -176,7 +158,7 @@ class Parser:
         self.ast['shape_colors'][nombre_shape]  = color
         self.ast['shape_chances'][nombre_shape] = chance
 
-    # --- FUNCION CORREGIDA (sin cambios respecto al original) ---
+    # FUNCION CORREGIDA
     def parsear_evento(self):
         self.consumir('ON')
         nombre_evento = 'ON_' + self.consumir()

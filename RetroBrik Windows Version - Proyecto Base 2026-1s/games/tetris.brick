@@ -1,7 +1,4 @@
-# tetris_remake.brick
-# Version extendida de Tetris para la Actividad 3 - Punto B
-#
-# Cambios respecto al tetris.brick original:
+# Cambios  (Actividad 3 - Punto B):
 #   - Se agregan 3 nuevas figuras: O_PIECE, S_PIECE, Z_PIECE
 #   - Cada figura ahora tiene un atributo COLOR (color hexadecimal)
 #   - Cada figura ahora tiene un atributo CHANCE (peso de probabilidad de aparicion)
@@ -11,9 +8,7 @@ GAME_TYPE TETRIS
 
 GAME_GRID (10, 20)
 
-# ===========================================================================
 # PIEZAS ORIGINALES (conservadas; ahora con atributos COLOR y CHANCE)
-# ===========================================================================
 
 DEFINE SHAPE I_PIECE:
   STATE 1:
@@ -82,9 +77,7 @@ DEFINE SHAPE T_PIECE:
   CHANCE: 15
 END
 
-# ===========================================================================
-# NUEVAS FIGURAS (Actividad 3 - Punto B)
-# ===========================================================================
+# NUEVAS FIGURAS
 
 # Pieza O: cuadrado 2x2. No cambia al rotar (todos los estados son identicos).
 DEFINE SHAPE O_PIECE:
@@ -148,9 +141,7 @@ DEFINE SHAPE Z_PIECE:
   CHANCE: 18
 END
 
-# ===========================================================================
-# LOGICA Y REGLAS (identicas al original para garantizar retrocompatibilidad)
-# ===========================================================================
+# LOGICA Y REGLAS
 
 ON START:
   SPAWN RANDOM_SHAPE

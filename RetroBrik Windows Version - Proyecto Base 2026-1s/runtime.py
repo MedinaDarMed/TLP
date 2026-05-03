@@ -1,13 +1,8 @@
-# -*- coding: utf-8 -*-
-# runtime.py (VERSION EXTENDIDA - Actividad 3 Punto B)
-#
-# CAMBIOS RESPECTO A LA VERSION ORIGINAL:
-# ============================================================
+# Cambios (Actividad 3 - Punto B):
 # 1. Clase Juego.__init__() - seccion TETRIS:
 #    - Se inicializa self.pieza_color = '#00FFFF' como color por defecto.
 #    - Esto evita un AttributeError si dibujar() se llama antes de que
 #      tetris_spawn_pieza() asigne el color de la primera pieza.
-#
 # 2. Metodo tetris_spawn_pieza():
 #    - ANTES: elegía la pieza con random.choice() (probabilidad uniforme).
 #    - AHORA: usa seleccion ponderada basada en los pesos del campo
@@ -16,17 +11,12 @@
 #      al original.
 #    - AHORA: lee el color de la pieza desde 'shape_colors'. Si el campo
 #      no existe (JSON antiguo), usa '#00FFFF' como fallback.
-#
 # 3. Metodo dibujar() - bloque TETRIS:
 #    - ANTES: COLOR_PIEZA = '#00FFFF' (hardcoded).
 #    - AHORA: COLOR_PIEZA = self.pieza_color (leido dinamicamente).
 #    - RETROCOMPATIBILIDAD: como pieza_color siempre tiene un valor
 #      (inicializado en __init__ y actualizado en spawn), el dibujo
 #      funciona tanto con JSON nuevos como antiguos.
-#
-# NOTA: Todo el resto del archivo (Snake, eventos, GUI, etc.) permanece
-# sin cambios para garantizar retrocompatibilidad total.
-# ============================================================
 
 import sys
 import json
@@ -47,7 +37,7 @@ class Juego:
         self.puntuacion  = 0
         self.juego_terminado = False
 
-        # --- Configuracion de la GUI (sin cambios) ---
+        # Configuracion de la GUI
         self.root = tk.Tk()
         self.root.title("BrickScript - " + self.tipo_juego)
         self.root.protocol("WM_DELETE_WINDOW", self.cerrar_ventana)
@@ -177,7 +167,7 @@ class Juego:
                             COLOR_PIEZA
                         )
 
-        # 3. Snake y Comida (sin cambios)
+        # 3. Snake y Comida
         if self.tipo_juego == 'SNAKE':
             if self.posicion_comida:
                 x, y = self.posicion_comida
@@ -212,13 +202,10 @@ class Juego:
                     if verbo == 'MOVE'  and objeto == 'PLAYER': self.snake_mover_jugador()
                     if verbo == 'GROW': self.snake_crecer()
 
-    # -------------------------------------------------------------------------
     # METODOS DE LOGICA DE JUEGO - TETRIS
-    # -------------------------------------------------------------------------
 
     def tetris_spawn_pieza(self):
         # CAMBIO 3: Seleccion ponderada de pieza basada en CHANCE.
-        #
         # Algoritmo (Python 2.7, sin librerias externas):
         #   1. Obtener la lista de nombres de piezas y sus pesos.
         #   2. Si el JSON no tiene 'shape_chances' (archivo antiguo), usar peso 1
@@ -226,9 +213,6 @@ class Juego:
         #   3. Generar un numero aleatorio en [0, suma_total_de_pesos).
         #   4. Recorrer las piezas acumulando pesos hasta superar el numero aleatorio.
         #      La pieza que lo supera es la seleccionada.
-        #
-        # Ejemplo con CHANCE 15, 15, 15, 20, 17, 18 (total=100):
-        #   O_PIECE tiene 20% de probabilidad real vs ~16.6% con random.choice.
         nombres = list(self.datos_juego['shapes'].keys())
         chances = self.datos_juego.get('shape_chances', {})
 
@@ -318,9 +302,7 @@ class Juego:
             for _ in range(lineas_limpias):
                 self.ejecutar_evento('ON_LINE_CLEAR')
 
-    # -------------------------------------------------------------------------
-    # METODOS DE LOGICA DE JUEGO - SNAKE (sin cambios)
-    # -------------------------------------------------------------------------
+    # METODOS DE LOGICA DE JUEGO - SNAKE
 
     def snake_spawn_jugador(self, accion):
         coords = accion['params'][0] if accion['params'] else [self.ancho / 2, self.alto / 2]
@@ -365,9 +347,7 @@ class Juego:
     def snake_crecer(self):
         pass
 
-    # -------------------------------------------------------------------------
-    # SALIDA (sin cambios)
-    # -------------------------------------------------------------------------
+    # SALIDA
 
     def mostrar_game_over(self):
         tkMessageBox.showinfo("Juego Terminado", "Puntuacion Final: " + str(self.puntuacion))

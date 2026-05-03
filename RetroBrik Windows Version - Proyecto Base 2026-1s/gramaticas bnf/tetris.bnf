@@ -1,21 +1,17 @@
-# tetris_remake.bnf
-# Gramatica formal (BNF) extendida para el Tetris Remake - Actividad 3 Punto B
-#
-# Cambios respecto a tetris.bnf original:
+# Cambios (Actividad 3 - Punto B):
 #   - <definicion_shape> ahora incluye <atributos_opcionales> antes del END
 #   - Se agregan reglas para <atributo_color>, <atributo_chance> y <color_hex>
 #   - El simbolo ε representa la cadena vacia (atributo opcional ausente)
 
-# ---- Estructura general del programa ----
+# Estructura general del programa
 <programa> ::= <tipo_juego> <grid> <definiciones> <eventos>
 
 <tipo_juego> ::= "GAME_TYPE" "TETRIS"
 <grid>        ::= "GAME_GRID" "(" <numero> "," <numero> ")"
-
 <definiciones> ::= <definicion_shape> | <definicion_shape> <definiciones>
 <eventos>      ::= <evento> | <evento> <eventos>
 
-# ---- Definicion de figuras (SHAPE) ----
+# Definicion de figuras (SHAPE)
 # NUEVO: Se agrega <atributos_opcionales> entre los estados y el END
 <definicion_shape> ::= "DEFINE" "SHAPE" <identificador> ":" <estados> <atributos_opcionales> "END"
 
@@ -25,7 +21,7 @@
 <fila>    ::= "[" <valores_fila> "]"
 <valores_fila> ::= <numero> | <numero> "," <valores_fila>
 
-# ---- Atributos opcionales de personalizacion (NUEVO en Punto B) ----
+#  Atributos opcionales de personalizacion (NUEVO en Punto B)
 # Cada atributo es independiente y puede aparecer en cualquier orden o no aparecer.
 # Si un atributo no esta presente, el compilador asigna un valor por defecto.
 <atributos_opcionales> ::= <atributo_color> <atributo_chance>
@@ -45,7 +41,7 @@
 <hex_digito> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
                | "A" | "B" | "C" | "D" | "E" | "F"
 
-# ---- Eventos y acciones (sin cambios respecto al original) ----
+# Eventos y acciones
 <evento>              ::= "ON" <nombre_evento_tetris> ":" <acciones_tetris> "END"
 <nombre_evento_tetris> ::= "START" | "TICK" | "LINE_CLEAR" | "KEY_UP" | "KEY_DOWN" | "KEY_LEFT" | "KEY_RIGHT"
 <acciones_tetris>     ::= <accion_tetris> | <accion_tetris> <acciones_tetris>
