@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Cambios (Actividad 3 - Punto B):
 #   - <definicion_shape> ahora incluye <atributos_opcionales> antes del END
 #   - Se agregan reglas para <atributo_color>, <atributo_chance> y <color_hex>

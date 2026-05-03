@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Cambios  (Actividad 3 - Punto B):
 #   - Se agregan 3 nuevas figuras: O_PIECE, S_PIECE, Z_PIECE
 #   - Cada figura ahora tiene un atributo COLOR (color hexadecimal)

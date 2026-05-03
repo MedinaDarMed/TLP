@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Cambios (Actividad 3 - Punto B):
 # 1. Clase Juego.__init__() - seccion TETRIS:
 #    - Se inicializa self.pieza_color = '#00FFFF' como color por defecto.

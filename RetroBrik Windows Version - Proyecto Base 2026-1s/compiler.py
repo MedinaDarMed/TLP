@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Cambios (Actividad 3 - Punto B):
 # 1. LEXER - funcion lexer():
 #    - La expresion regular de comentarios ahora preserva los colores hexadecimales
