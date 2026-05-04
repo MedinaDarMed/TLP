@@ -15,6 +15,15 @@
 #    - Si no estan presentes (archivo .brick antiguo), se asignan valores por
 #      defecto: color '#00FFFF' y chance 1.
 
+# Cambios (Actividad 3 - Punto C):
+# 5. PARSER - metodo parsear_powerup() (Actividad 3 - Punto C):
+#    - Se agrega metodo parsear_powerup() que lee bloques DEFINE POWERUP.
+#    - Se agrega la clave 'powerups' al AST.
+#    - parse() ahora distingue DEFINE SHAPE de DEFINE POWERUP con un lookahead
+#      de un token (sin consumir).
+#    - Retrocompatibilidad: si el .brick no tiene POWERUP, 'powerups' queda
+#      como diccionario vacio {} y el runtime lo ignora.
+
 # NOTA: El resto del codigo (parsear_tipo_juego, parsear_grid, parsear_evento,
 # generar_codigo y el bloque __main__) NO fue modificado.
 
@@ -51,11 +60,13 @@ class Parser:
         # Mantener 'shapes' en su formato original garantiza que el runtime
         # antiguo siga funcionando.
         self.ast = {
+            "version":       "original", # NUEVO: valor por defecto para todos los .brick
             "tipo_juego":    None,
             "config":        {},
             "shapes":        {},
             "shape_colors":  {},
             "shape_chances": {},
+            "powerups":      {},   # NUEVO (Actividad 3 - Punto C)
             "events":        {}
         }
 
@@ -67,7 +78,15 @@ class Parser:
             elif token_actual == 'GAME_GRID':
                 self.parsear_grid()
             elif token_actual == 'DEFINE':
-                self.parsear_shape()
+                # CAMBIO (Actividad 3 - Punto C):
+                # Se distingue entre DEFINE SHAPE y DEFINE POWERUP
+                # mirando el token siguiente sin consumirlo (lookahead).
+                siguiente = (self.tokens[self.posicion + 1]
+                             if self.posicion + 1 < len(self.tokens) else '')
+                if siguiente == 'POWERUP':
+                    self.parsear_powerup()
+                else:
+                    self.parsear_shape()
             elif token_actual == 'ON':
                 self.parsear_evento()
             else:
@@ -159,6 +178,79 @@ class Parser:
         self.ast['shape_colors'][nombre_shape]  = color
         self.ast['shape_chances'][nombre_shape] = chance
 
+    def parsear_powerup(self):
+        # NUEVO (Actividad 3 - Punto C)
+        # Parsea bloques del tipo:
+        #   DEFINE POWERUP NOMBRE:
+        #     TRIGGER: TIPO_TRIGGER VALOR
+        #     STATE 1:
+        #       [...]
+        #     COLOR: #RRGGBB
+        #     CHANCE: N
+        #   END
+        #
+        # El resultado se almacena en ast['powerups'] con la estructura:
+        #   {
+        #     "NOMBRE": {
+        #       "trigger_type":  "LINE_CLEAR_EXACT" | "LINE_CLEAR_MIN",
+        #       "trigger_value": <int>,
+        #       "states":        [lista de matrices],
+        #       "color":         "#RRGGBB",
+        #       "chance":        <int>
+        #     }
+        #   }
+        self.consumir('DEFINE')
+        self.consumir('POWERUP')
+        nombre = self.consumir()
+        self.consumir(':')
+
+        # Leer TRIGGER
+        self.consumir('TRIGGER')
+        self.consumir(':')
+        tipo_trigger  = self.consumir()   # LINE_CLEAR_EXACT o LINE_CLEAR_MIN
+        valor_trigger = int(self.consumir())
+
+        # Leer estados (identico a parsear_shape)
+        estados = []
+        while self.posicion < len(self.tokens) and self.tokens[self.posicion] == 'STATE':
+            self.consumir('STATE')
+            self.consumir()   # numero del estado
+            self.consumir(':')
+            matriz = []
+            while self.posicion < len(self.tokens) and self.tokens[self.posicion] == '[':
+                fila = []
+                self.consumir('[')
+                while self.tokens[self.posicion] != ']':
+                    fila.append(int(self.consumir()))
+                    if self.tokens[self.posicion] == ',':
+                        self.consumir(',')
+                self.consumir(']')
+                matriz.append(fila)
+            estados.append(matriz)
+
+        # Leer COLOR y CHANCE (opcionales, con valores por defecto)
+        color  = '#FFFFFF'
+        chance = 100
+
+        while (self.posicion < len(self.tokens) and
+               self.tokens[self.posicion] in ('COLOR', 'CHANCE')):
+            atributo = self.consumir()
+            self.consumir(':')
+            if atributo == 'COLOR':
+                color = self.consumir()
+            elif atributo == 'CHANCE':
+                chance = int(self.consumir())
+
+        self.consumir('END')
+
+        self.ast['powerups'][nombre] = {
+            'trigger_type':  tipo_trigger,
+            'trigger_value': valor_trigger,
+            'states':        estados,
+            'color':         color,
+            'chance':        chance
+        }
+
     # FUNCION CORREGIDA
     def parsear_evento(self):
         self.consumir('ON')
@@ -213,6 +305,13 @@ if __name__ == "__main__":
             codigo = f.read()
         tokens = lexer(codigo)
         parser = Parser(tokens)
+         # RETROCOMPAT (Punto C - Visual): detectar si el .brick es un remake
+        # por el nombre del archivo. Si contiene 'remake', el JSON generado
+        # llevara "version": "remake" y el runtime activara el estilo mejorado.
+        # Cualquier archivo sin 'remake' en el nombre mantiene "version": "original"
+        # (valor por defecto ya puesto en Parser.__init__) y ejecuta la GUI clasica.
+        if 'remake' in archivo_entrada:
+            parser.ast['version'] = 'remake'
         ast    = parser.parse()
         generar_codigo(ast, archivo_salida)
         print "Compilacion exitosa! Archivo de juego creado en " + archivo_salida

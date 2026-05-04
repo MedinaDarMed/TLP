@@ -5,6 +5,9 @@
 #   - Cada figura ahora tiene un atributo CHANCE (peso de probabilidad de aparicion)
 #   - Las figuras originales (I, L, T) conservan sus rotaciones y se les asigna COLOR y CHANCE
 
+# Cambios  (Actividad 3 - Punto C):
+#   - 
+
 GAME_TYPE TETRIS
 
 GAME_GRID (10, 20)
@@ -140,6 +143,45 @@ DEFINE SHAPE Z_PIECE:
     [1, 0, 0]
   COLOR: #FF2244
   CHANCE: 18
+END
+
+# POWER-UPS
+
+# PowerUp DOUBLE_CLEAR: aparece cuando se eliminan exactamente 2 filas simultaneas.
+# Forma: rectangulo 3x2. No tiene rotaciones especiales (solo 1 estado).
+DEFINE POWERUP DOUBLE_CLEAR_PU:
+  TRIGGER: LINE_CLEAR_EXACT 2
+  STATE 1:
+    [1, 1, 1]
+    [1, 1, 1]
+  COLOR: #FF00FF
+  CHANCE: 100
+END
+
+# PowerUp TRIPLE_CLEAR: aparece cuando se eliminan 3 o mas filas simultaneas.
+# Forma: rectangulo 1x2. Si rota 10+ veces mientras cae, activa modo BOMB:
+# elimina todas las filas donde quedaron sus celdas y suma puntaje extra.
+DEFINE POWERUP TRIPLE_CLEAR_PU:
+  TRIGGER: LINE_CLEAR_MIN 3
+  STATE 1:
+    [1, 0]
+    [1, 0]
+  STATE 2:
+    [1, 1]
+    [0, 0]
+  COLOR: #FFFFFF
+  CHANCE: 100
+END
+
+# PowerUp LINE_PURGE_PU: se activa cada 8 lineas eliminadas acumuladas.
+# Efecto: elimina silenciosamente las dos ultimas filas del tablero
+# sin otorgar puntaje. Es un "reset suave" del fondo del tablero.
+DEFINE POWERUP LINE_PURGE_PU:
+  TRIGGER: LINE_CUMULATIVE 8
+  STATE 1:
+    [0]
+  COLOR: #888888
+  CHANCE: 100
 END
 
 # LOGICA Y REGLAS
