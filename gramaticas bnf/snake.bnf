@@ -1,0 +1,43 @@
+<programa> ::= <tipo_juego> <grid> <nivel_opcional> <definiciones> <eventos>
+
+<tipo_juego>     ::= "GAME_TYPE" "SNAKE"
+<grid>           ::= "GAME_GRID" "(" <numero> "," <numero> ")"
+<nivel_opcional> ::= "LEVEL" <nombre_nivel> | e
+<nombre_nivel>   ::= "BABY" | "EASY" | "MEDIUM" | "HARD" | "NYAN_CAT"
+
+<definiciones> ::= <definicion_shape> | <definicion_shape> <definiciones>
+<eventos>      ::= <evento> | <evento> <eventos>
+
+<definicion_shape> ::= "DEFINE" "SHAPE" <identificador> ":" <estados> <atributos_shape_opcionales> "END"
+<estados>          ::= <estado> | <estado> <estados>
+<estado>           ::= "STATE" <numero> ":" <matriz>
+<matriz>           ::= <fila> | <fila> <matriz>
+<fila>             ::= "[" <valores_fila> "]"
+<valores_fila>     ::= <numero> | <numero> "," <valores_fila>
+
+<atributos_shape_opcionales> ::= <atributo_shape> <atributos_shape_opcionales> | e
+<atributo_shape>             ::= <atributo_shape_type>
+<atributo_shape_type>        ::= "SHAPE_TYPE" ":" <tipo_forma>
+<tipo_forma>                 ::= "RECTANGULAR" | "CIRCULAR" | "TRIANGULAR"
+
+<evento>              ::= "ON" <nombre_evento_snake> ":" <acciones_snake> "END"
+<nombre_evento_snake> ::= "START" | "TICK" | "EAT_FOOD" | "COLLISION_WALL" | "COLLISION_SELF"
+                        | "KEY_UP" | "KEY_DOWN" | "KEY_LEFT" | "KEY_RIGHT"
+<acciones_snake>      ::= <accion_snake> | <accion_snake> <acciones_snake>
+
+<accion_snake>         ::= <accion_spawn_jugador> | <accion_spawn_comida> | <accion_mover>
+                         | <accion_direccion> | <accion_puntos> | <accion_crecer> | <accion_gameover>
+<accion_spawn_jugador> ::= "SPAWN" "PLAYER" "AT" <coordenadas>
+<accion_spawn_comida>  ::= "SPAWN" "FOOD" "AT" "RANDOM"
+<accion_mover>         ::= "MOVE" "PLAYER" "FORWARD"
+<accion_direccion>     ::= "SET_DIRECTION" <direccion>
+<accion_puntos>        ::= "INCREASE_SCORE" <numero>
+<accion_crecer>        ::= "GROW" "PLAYER" <numero>
+<accion_gameover>      ::= "GAME_OVER"
+
+<coordenadas>   ::= "(" <numero> "," <numero> ")"
+<direccion>     ::= "UP" | "DOWN" | "LEFT" | "RIGHT"
+<identificador> ::= <letra> | <letra> <identificador>
+<numero>        ::= <digito> | <digito> <numero>
+<letra>         ::= "A"..."Z" | "_"
+<digito>        ::= "0"..."9"
