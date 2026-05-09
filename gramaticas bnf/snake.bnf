@@ -21,19 +21,23 @@
 <tipo_forma>                 ::= "RECTANGULAR" | "CIRCULAR" | "TRIANGULAR"
 
 <evento>              ::= "ON" <nombre_evento_snake> ":" <acciones_snake> "END"
-<nombre_evento_snake> ::= "START" | "TICK" | "EAT_FOOD" | "COLLISION_WALL" | "COLLISION_SELF"
+<nombre_evento_snake> ::= "START" | "TICK" | "EAT_FOOD" | "EAT_POISON" | "EAT_SHIELD" 
+                        | "COLLISION_WALL" | "COLLISION_SELF" | "COLLISION_CLOUD"
                         | "KEY_UP" | "KEY_DOWN" | "KEY_LEFT" | "KEY_RIGHT"
 <acciones_snake>      ::= <accion_snake> | <accion_snake> <acciones_snake>
 
-<accion_snake>         ::= <accion_spawn_jugador> | <accion_spawn_comida> | <accion_mover>
-                         | <accion_direccion> | <accion_puntos> | <accion_crecer> | <accion_gameover>
+<accion_snake>         ::= <accion_spawn_jugador> | <accion_spawn_comida> | <accion_spawn_especial>
+                         | <accion_mover> | <accion_direccion> | <accion_puntos> | <accion_crecer> 
+                         | <accion_gameover> | <accion_shield>
 <accion_spawn_jugador> ::= "SPAWN" "PLAYER" "AT" <coordenadas>
 <accion_spawn_comida>  ::= "SPAWN" "FOOD" "AT" "RANDOM"
+<accion_spawn_especial> ::= "SPAWN" "POISON" "AT" "RANDOM" | "SPAWN" "CLOUD" "AT" <coordenadas> | "SPAWN" "SHIELD" "AT" "RANDOM"
 <accion_mover>         ::= "MOVE" "PLAYER" "FORWARD"
 <accion_direccion>     ::= "SET_DIRECTION" <direccion>
-<accion_puntos>        ::= "INCREASE_SCORE" <numero>
+<accion_puntos>        ::= "INCREASE_SCORE" <numero> | "DECREASE_SCORE" <numero> | "RESET_SCORE"
 <accion_crecer>        ::= "GROW" "PLAYER" <numero>
 <accion_gameover>      ::= "GAME_OVER"
+<accion_shield>        ::= "GRANT_SHIELD"
 
 <coordenadas>   ::= "(" <numero> "," <numero> ")"
 <direccion>     ::= "UP" | "DOWN" | "LEFT" | "RIGHT"

@@ -187,76 +187,66 @@ class Parser:
         self.ast['shape_chances'][nombre_shape] = chance
         self.ast['shape_types'][nombre_shape]   = shape_type
     def parsear_powerup(self):
-        # NUEVO (Actividad 3 - Punto C)
-        # Parsea bloques del tipo:
-        #   DEFINE POWERUP NOMBRE:
-        #     TRIGGER: TIPO_TRIGGER VALOR
-        #     STATE 1:
-        #       [...]
-        #     COLOR: #RRGGBB
-        #     CHANCE: N
-        #   END
-        #
-        # El resultado se almacena en ast['powerups'] con la estructura:
-        #   {
-        #     "NOMBRE": {
-        #       "trigger_type":  "LINE_CLEAR_EXACT" | "LINE_CLEAR_MIN",
-        #       "trigger_value": <int>,
-        #       "states":        [lista de matrices],
-        #       "color":         "#RRGGBB",
-        #       "chance":        <int>
-        #     }
-        #   }
         self.consumir('DEFINE')
         self.consumir('POWERUP')
-        nombre = self.consumir()
+        nombre_pu = self.consumir()
         self.consumir(':')
 
-        # Leer TRIGGER
-        self.consumir('TRIGGER')
-        self.consumir(':')
-        tipo_trigger  = self.consumir()   # LINE_CLEAR_EXACT o LINE_CLEAR_MIN
-        valor_trigger = int(self.consumir())
-
-        # Leer estados (identico a parsear_shape)
-        estados = []
-        while self.posicion < len(self.tokens) and self.tokens[self.posicion] == 'STATE':
-            self.consumir('STATE')
-            self.consumir()   # numero del estado
-            self.consumir(':')
-            matriz = []
-            while self.posicion < len(self.tokens) and self.tokens[self.posicion] == '[':
-                fila = []
-                self.consumir('[')
-                while self.tokens[self.posicion] != ']':
-                    fila.append(int(self.consumir()))
-                    if self.tokens[self.posicion] == ',':
-                        self.consumir(',')
-                self.consumir(']')
-                matriz.append(fila)
-            estados.append(matriz)
-
-        # Leer COLOR y CHANCE (opcionales, con valores por defecto)
-        color  = '#FFFFFF'
-        chance = 100
-
-        while (self.posicion < len(self.tokens) and
-               self.tokens[self.posicion] in ('COLOR', 'CHANCE')):
-            atributo = self.consumir()
-            self.consumir(':')
-            if atributo == 'COLOR':
-                color = self.consumir()
-            elif atributo == 'CHANCE':
-                chance = int(self.consumir())
+        # Atributos de power-up
+        tipo_trigger  = None
+        valor_trigger = None
+        duracion      = None
+        estados       = []
+        color         = '#FFFFFF'
+        chance        = 100
+        
+        while self.posicion < len(self.tokens) and self.tokens[self.posicion] != 'END':
+            token = self.tokens[self.posicion]
+            if token == 'TRIGGER':
+                self.consumir('TRIGGER')
+                self.consumir(':')
+                tipo_trigger  = self.consumir()
+                valor_trigger = int(self.consumir())
+            elif token == 'DURATION':
+                self.consumir('DURATION')
+                self.consumir(':')
+                duracion      = int(self.consumir())
+            elif token == 'COLOR':
+                self.consumir('COLOR')
+                self.consumir(':')
+                color         = self.consumir()
+            elif token == 'CHANCE':
+                self.consumir('CHANCE')
+                self.consumir(':')
+                chance        = int(self.consumir())
+            elif token == 'STATE':
+                self.consumir('STATE')
+                self.consumir() # num estado
+                self.consumir(':')
+                matriz = []
+                while self.posicion < len(self.tokens) and self.tokens[self.posicion] == '[':
+                    fila = []
+                    self.consumir('[')
+                    while self.tokens[self.posicion] != ']':
+                        fila.append(int(self.consumir()))
+                        if self.tokens[self.posicion] == ',':
+                            self.consumir(',')
+                    self.consumir(']')
+                    matriz.append(fila)
+                estados.append(matriz)
+            else:
+                # Si es un token desconocido, lo saltamos
+                self.posicion += 1
 
         self.consumir('END')
 
-        self.ast['powerups'][nombre] = {
-            'trigger_type':  tipo_trigger,
+        self.ast['powerups'][nombre_pu] = {
+            'trigger_type': tipo_trigger,
             'trigger_value': valor_trigger,
-            'states':        estados,
-            'color':         color,
-            'chance':        chance
+            'duration': duracion,
+            'states': estados,
+            'color': color,
+            'chance': chance
         }
 
     # FUNCION CORREGIDA
@@ -268,8 +258,16 @@ class Parser:
         while self.posicion < len(self.tokens) and self.tokens[self.posicion] != 'END':
             verbo = self.consumir()
 
-            if verbo == 'GAME_OVER':
+            # Verbos que NO requieren objeto ni parametros
+            if verbo in ('GAME_OVER', 'RESET_SCORE', 'GRANT_SHIELD'):
                 acciones.append({'accion': verbo, 'objeto': None, 'params': []})
+                continue
+
+            # Verbos que consumen un valor numerico como "objeto"
+            # (INCREASE_SCORE 10, DECREASE_SCORE 5)
+            if verbo in ('INCREASE_SCORE', 'DECREASE_SCORE'):
+                valor = self.consumir()
+                acciones.append({'accion': verbo, 'objeto': valor, 'params': []})
                 continue
 
             objeto = self.consumir()
@@ -314,11 +312,12 @@ if __name__ == "__main__":
         tokens = lexer(codigo)
         parser = Parser(tokens)
          # RETROCOMPAT (Punto C - Visual): detectar si el .brick es un remake
-        # por el nombre del archivo. Si contiene 'remake', el JSON generado
-        # llevara "version": "remake" y el runtime activara el estilo mejorado.
-        # Cualquier archivo sin 'remake' en el nombre mantiene "version": "original"
-        # (valor por defecto ya puesto en Parser.__init__) y ejecuta la GUI clasica.
-        if 'remake' in archivo_entrada:
+        # o un evolved por el nombre del archivo. Si contiene 'remake' o 'evolved',
+        # el JSON generado llevara "version": "remake" y el runtime activara
+        # el estilo mejorado. Cualquier archivo sin estas palabras mantiene
+        # "version": "original" (valor por defecto ya puesto en Parser.__init__)
+        # y ejecuta la GUI clasica.
+        if 'remake' in archivo_entrada or 'evolved' in archivo_entrada:
             parser.ast['version'] = 'remake'
         ast    = parser.parse()
         generar_codigo(ast, archivo_salida)

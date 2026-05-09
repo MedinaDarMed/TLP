@@ -1,0 +1,52 @@
+================================================================================
+          BITÁCORA FINAL DE CAMBIOS: PROYECTO BRICKSCRIPT - SNAKE EVOLVED
+================================================================================
+
+1. LENGUAJE Y GRAMÁTICA (snake.bnf)
+--------------------------------------------------------------------------------
+- Soporte para nuevas mecánicas de juego:
+  * Eventos: ON EAT_POISON, ON EAT_SHIELD, ON COLLISION_CLOUD.
+  * Acciones: DECREASE_SCORE, RESET_SCORE, GRANT_SHIELD.
+- Soporte para Atributos:
+  * Inclusión de DURATION en el bloque DEFINE POWERUP.
+  * Inclusión de LEVEL en la cabecera del programa.
+
+2. COMPILADOR (compiler.py)
+--------------------------------------------------------------------------------
+- Actualización del Parser: Ahora procesa bloques de POWERUP con atributos
+  opcionales (DURATION, COLOR, CHANCE) y estados.
+- Traducción de Niveles: Implementación del reconocimiento del campo LEVEL para
+  establecer el límite de progresión en el JSON resultante.
+- Compatibilidad: Mantenimiento estricto de la sintaxis de Python 2.7.
+
+3. MOTOR DE JUEGO (runtime.py) - REVISIÓN FINAL
+--------------------------------------------------------------------------------
+- Nuevas Entidades y Renderizado:
+  * Fruta Venenosa (POISON): Cuadro magenta con una "X" negra.
+  * Nube Obstáculo (CLOUD): Óvalo gris con símbolo "~".
+  * Ítem Escudo (SHIELD): Diamante cian con contorno verde.
+- Lógica de Escudo (Temporizado):
+  * Al activarse, genera un halo verde pulsante (usando math.sin).
+  * Otorga inmunidad total contra colisiones letales (Veneno y Nubes).
+  * Duración configurable mediante DURATION (especificado en ticks).
+- Sistema de Progresión de Niveles:
+  * Escala de Niveles: BABY -> EASY -> MEDIUM -> HARD -> NYAN_CAT.
+  * Velocidades Finales: 0.15s, 0.10s, 0.08s, 0.06s, 0.04s.
+  * Umbrales de Puntos: 0, 20, 30, 40, 50 puntos acumulados.
+- Optimizaciones de Código:
+  * Corrección del Game Loop: Reinicio del timer_gravedad para aplicar cambios
+    de velocidad en tiempo real.
+  * Scoreboard: Nuevo método actualizar_marcador() para refrescar la GUI.
+  * Módulos: Incorporación de "import math" para efectos visuales.
+
+4. ENTORNO Y DESPLIEGUE
+--------------------------------------------------------------------------------
+- Intérprete Local: Uso de Python 2.7 ubicado en .\python27 para asegurar que
+  el juego corra sin dependencias externas del sistema.
+- Ejecución Unificada: Actualización de jugar.bat para automatizar la
+  compilación y ejecución con un solo comando.
+- Juego de Referencia: games/snake_evolved.brick (Actualizado a LEVEL NYAN_CAT).
+
+--------------------------------------------------------------------------------
+
+================================================================================

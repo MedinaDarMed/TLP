@@ -77,6 +77,7 @@ import sys
 import json
 import time
 import random
+import math
 import Tkinter as tk
 import tkMessageBox
 
@@ -290,9 +291,18 @@ class Juego:
             self.lineas_eliminadas_total = 0
 
         if self.tipo_juego == 'SNAKE':
-            self.serpiente_cuerpo     = []
-            self.serpiente_direccion  = (1, 0)
-            self.posicion_comida      = None
+            self.serpiente_cuerpo    = []
+            self.serpiente_direccion = (1, 0)
+            self.posicion_comida     = None
+
+            # --- SNAKE EVOLVED: Estado de nuevas entidades ---
+            self.posicion_veneno     = None
+            self.posiciones_nubes    = []
+            self.escudo_activo       = False
+            self.escudo_restante     = 0     # Ticks restantes de invulnerabilidad
+            self.posicion_escudo     = None
+            self.escudo_halo_frame   = 0     # Para la animacion del halo
+
             self.snake_shape = self.datos_juego.get('shape_types', {}).get('PIXEL', 'RECTANGULAR')
             # ACTIVIDAD 4 - Logica de niveles progresivos:
             # El .brick define el nivel MAXIMO alcanzable (ej. NYAN_CAT).
@@ -310,11 +320,11 @@ class Juego:
                 'NYAN_CAT': 50,  # nivel maximo al comer 5 frutas
             }
             self.velocidades_nivel = {
-                'BABY':     0.20,
-                'EASY':     0.15,
-                'MEDIUM':   0.10,
+                'BABY':     0.15,
+                'EASY':     0.10,
+                'MEDIUM':   0.08,
                 'HARD':     0.06,
-                'NYAN_CAT': 0.08,
+                'NYAN_CAT': 0.04,
             }
             # Nivel actual siempre empieza en BABY
             self.level = 'BABY'
@@ -347,6 +357,14 @@ class Juego:
         self.timer_gravedad += 0.05
         if self.timer_gravedad >= self.velocidad_gravedad:
             self.timer_gravedad = 0
+            
+            if self.tipo_juego == 'SNAKE':
+                # --- SNAKE EVOLVED: Gestion del escudo ---
+                if self.escudo_activo:
+                    self.escudo_restante -= 1
+                    if self.escudo_restante <= 0:
+                        self.escudo_activo = False
+            
             self.ejecutar_evento('ON_TICK')
 
         self.dibujar()
@@ -455,6 +473,32 @@ class Juego:
                     self.dibujar_celda_estilo(x, y, COLOR_FOOD)
                 else:
                     self.dibujar_celda(x, y, COLOR_FOOD)
+
+            # --- SNAKE EVOLVED: Dibujar fruta venenosa (magenta + X) ---
+            if self.posicion_veneno:
+                vx, vy = self.posicion_veneno
+                cv = '#FF00FF'
+                if self.es_remake: self.dibujar_celda_estilo(vx, vy, cv)
+                else: self.dibujar_celda(vx, vy, cv)
+                ts = self.taman_celda
+                px, py = vx * ts, vy * ts
+                self.canvas.create_line(px+4, py+4, px+ts-4, py+ts-4, fill='black', width=2)
+                self.canvas.create_line(px+ts-4, py+4, px+4, py+ts-4, fill='black', width=2)
+
+            # --- SNAKE EVOLVED: Dibujar nubes (gris + ~) ---
+            for nx, ny in self.posiciones_nubes:
+                ts = self.taman_celda
+                px, py = nx * ts, ny * ts
+                self.canvas.create_oval(px+2, py+2, px+ts-2, py+ts-2, fill='#888888', outline='#555555', width=2)
+                self.canvas.create_text(px+ts/2, py+ts/2, text='~', fill='#333333', font=('Consolas', 10, 'bold'))
+
+            # --- SNAKE EVOLVED: Dibujar escudo (diamante cian) ---
+            if self.posicion_escudo:
+                sx, sy = self.posicion_escudo
+                ts = self.taman_celda
+                px, py = sx * ts, sy * ts
+                cx, cy = px + ts/2, py + ts/2
+                self.canvas.create_polygon(cx, py+2, px+ts-2, cy, cx, py+ts-2, px+2, cy, fill='#00FFAA', outline='#00CC88', width=2)
             # Dibujar serpiente
             # ACTIVIDAD 4 - Logica de niveles y formas:
             # El nivel define el comportamiento visual de la serpiente.
@@ -562,6 +606,18 @@ class Juego:
                         else:
                             self.dibujar_celda(x, y, color)
 
+            # --- SNAKE EVOLVED: Halo del escudo ---
+            if self.escudo_activo and self.serpiente_cuerpo:
+                self.escudo_halo_frame += 1
+                hx, hy = self.serpiente_cuerpo[0]
+                ts = self.taman_celda
+                cx, cy = hx * ts + ts/2, hy * ts + ts/2
+                pulso = abs(math.sin(self.escudo_halo_frame * 0.15))
+                radio = int(ts * 0.7 + pulso * ts * 0.4)
+                intensidad = int(150 + pulso * 105)
+                color_halo = '#{:02X}{:02X}{:02X}'.format(0, intensidad, int(intensidad * 0.7))
+                self.canvas.create_oval(cx-radio, cy-radio, cx+radio, cy+radio, outline=color_halo, width=3)
+
         # CAMBIO (Punto C - Visual): flash de pantalla al spawnear un power-up.
         # Se dibuja un rectangulo semitransparente encima de todo el canvas
         # y un letrero "!POWER UP!" parpadeando.
@@ -664,21 +720,48 @@ class Juego:
     def ejecutar_evento(self, nombre_evento):
         if nombre_evento in self.datos_juego['events']:
             for accion in self.datos_juego['events'][nombre_evento]:
-                verbo, objeto = accion.get('accion'), accion.get('objeto')
+                verbo, objeto, params = accion.get('accion'), accion.get('objeto'), accion.get('params', [])
 
-                if verbo == 'INCREASE_SCORE': self.puntuacion += int(objeto)
-                if verbo == 'GAME_OVER': self.juego_terminado = True
+                if verbo == 'INCREASE_SCORE': 
+                    self.puntuacion += int(objeto)
+                    self.actualizar_marcador()
+                elif verbo == 'DECREASE_SCORE':
+                    self.puntuacion = max(0, self.puntuacion - int(objeto))
+                    self.actualizar_marcador()
+                elif verbo == 'RESET_SCORE':
+                    self.puntuacion = 0
+                    self.actualizar_marcador()
+                elif verbo == 'GRANT_SHIELD':
+                    # Buscar la duracion en cualquier powerup definido
+                    duracion_ticks = 150  # Valor por defecto (7.5 segundos)
+                    powerups = self.datos_juego.get('powerups', {})
+                    for pu_nombre in powerups:
+                        if 'duration' in powerups[pu_nombre] and powerups[pu_nombre]['duration'] is not None:
+                            duracion_ticks = powerups[pu_nombre]['duration']
+                            break
+                    self.escudo_activo = True
+                    self.escudo_restante = duracion_ticks
+                elif verbo == 'GAME_OVER': 
+                    self.juego_terminado = True
 
                 if self.tipo_juego == 'TETRIS':
                     if verbo == 'SPAWN': self.tetris_spawn_pieza()
-                    if verbo == 'MOVE':  self.tetris_mover_pieza(accion['params'][0])
+                    if verbo == 'MOVE':  self.tetris_mover_pieza(params[0])
                     if verbo == 'ROTATE': self.tetris_rotar_pieza()
 
                 if self.tipo_juego == 'SNAKE':
-                    if verbo == 'SPAWN' and objeto == 'PLAYER': self.snake_spawn_jugador(accion)
-                    if verbo == 'SPAWN' and objeto == 'FOOD':   self.snake_spawn_comida()
+                    if verbo == 'SPAWN':
+                        if objeto == 'PLAYER': self.snake_spawn_jugador(accion)
+                        elif objeto == 'FOOD': self.snake_spawn_comida()
+                        elif objeto == 'POISON': self.snake_spawn_veneno()
+                        elif objeto == 'CLOUD':
+                            coords = params[0] if params else [0, 0]
+                            self.posiciones_nubes.append((coords[0], coords[1]))
+                        elif objeto == 'SHIELD': self.snake_spawn_escudo()
+                    
                     if verbo == 'MOVE'  and objeto == 'PLAYER': self.snake_mover_jugador()
                     if verbo == 'GROW': self.snake_crecer()
+                    if verbo == 'SET_DIRECTION': self.snake_cambiar_direccion(objeto)
 
     # METODOS DE LOGICA DE JUEGO - TETRIS
 
@@ -933,10 +1016,17 @@ class Juego:
         self.serpiente_direccion = (1, 0)
 
     def snake_spawn_comida(self):
+        # Evitar posiciones ocupadas por serpiente, veneno, nubes y escudo
+        ocupadas = set(self.serpiente_cuerpo)
+        if self.posicion_veneno:
+            ocupadas.add(self.posicion_veneno)
+        if self.posicion_escudo:
+            ocupadas.add(self.posicion_escudo)
+        ocupadas.update(self.posiciones_nubes)
         while True:
             x = random.randint(0, self.ancho - 1)
             y = random.randint(0, self.alto  - 1)
-            if (x, y) not in self.serpiente_cuerpo:
+            if (x, y) not in ocupadas:
                 self.posicion_comida = (x, y)
                 break
 
@@ -946,20 +1036,74 @@ class Juego:
         dir_x,    dir_y    = self.serpiente_direccion
         nueva_cabeza = (cabeza_x + dir_x, cabeza_y + dir_y)
 
+        # Colision con paredes
         if not (0 <= nueva_cabeza[0] < self.ancho and 0 <= nueva_cabeza[1] < self.alto):
             self.ejecutar_evento('ON_COLLISION_WALL')
             return
 
+        # Colision consigo misma
         if nueva_cabeza in self.serpiente_cuerpo[:-1]:
             self.ejecutar_evento('ON_COLLISION_SELF')
             return
 
         self.serpiente_cuerpo.insert(0, nueva_cabeza)
 
+        # --- Colision con comida normal ---
         if nueva_cabeza == self.posicion_comida:
             self.ejecutar_evento('ON_EAT_FOOD')
         else:
             self.serpiente_cuerpo.pop()
+
+        # --- SNAKE EVOLVED: Colision con fruta venenosa ---
+        if self.posicion_veneno and nueva_cabeza == self.posicion_veneno:
+            self.posicion_veneno = None  # consumir la fruta venenosa
+            if not self.escudo_activo:
+                niveles_letales = ('MEDIUM', 'HARD', 'NYAN_CAT')
+                if self.level in niveles_letales:
+                    self.juego_terminado = True
+                else:
+                    self.ejecutar_evento('ON_EAT_POISON')
+
+        # --- SNAKE EVOLVED: Colision con nube obstaculo ---
+        if nueva_cabeza in self.posiciones_nubes:
+            if not self.escudo_activo:
+                if self.puntuacion <= 0:
+                    self.juego_terminado = True
+                else:
+                    self.ejecutar_evento('ON_COLLISION_CLOUD')
+
+        # --- SNAKE EVOLVED: Colision con item de escudo ---
+        if self.posicion_escudo and nueva_cabeza == self.posicion_escudo:
+            self.posicion_escudo = None  # consumir el item de escudo
+            self.ejecutar_evento('ON_EAT_SHIELD')
+
+    def snake_spawn_veneno(self):
+        ocupadas = set(self.serpiente_cuerpo)
+        if self.posicion_comida: ocupadas.add(self.posicion_comida)
+        if self.posicion_escudo: ocupadas.add(self.posicion_escudo)
+        ocupadas.update(self.posiciones_nubes)
+        intentos = 0
+        while intentos < 200:
+            x = random.randint(0, self.ancho - 1)
+            y = random.randint(0, self.alto  - 1)
+            if (x, y) not in ocupadas:
+                self.posicion_veneno = (x, y)
+                return
+            intentos += 1
+
+    def snake_spawn_escudo(self):
+        ocupadas = set(self.serpiente_cuerpo)
+        if self.posicion_comida: ocupadas.add(self.posicion_comida)
+        if self.posicion_veneno: ocupadas.add(self.posicion_veneno)
+        ocupadas.update(self.posiciones_nubes)
+        intentos = 0
+        while intentos < 200:
+            x = random.randint(0, self.ancho - 1)
+            y = random.randint(0, self.alto  - 1)
+            if (x, y) not in ocupadas:
+                self.posicion_escudo = (x, y)
+                return
+            intentos += 1
 
     def snake_cambiar_direccion(self, direccion):
         if direccion == 'UP'    and self.serpiente_direccion[1] != 1:  self.serpiente_direccion = (0, -1)
@@ -986,6 +1130,14 @@ class Juego:
             self.level = nivel_nuevo
             self.velocidad_gravedad = self.velocidades_nivel.get(self.level, 0.15)
             self.root.title('BrickScript - SNAKE  |  Nivel: ' + self.level)
+
+    def actualizar_marcador(self):
+        if self.es_remake:
+            if self.label_score: self.label_score.config(text=str(self.puntuacion))
+            if self.label_lineas and self.tipo_juego == 'TETRIS':
+                self.label_lineas.config(text=str(self.lineas_eliminadas_total))
+        else:
+            if self.label_score: self.label_score.config(text='PUNTUACION\n' + str(self.puntuacion))
 
     # SALIDA
 

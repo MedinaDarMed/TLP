@@ -1,67 +1,71 @@
-# snake_evolved.brick
-# Version evolucionada del Snake con niveles progresivos y formas geometricas.
-# El campo LEVEL define el nivel MAXIMO que puede alcanzar el jugador.
-# El juego siempre comienza en BABY y sube de nivel segun la puntuacion.
 GAME_TYPE SNAKE
-
-GAME_GRID (18, 18)
-
+GAME_GRID (20, 20)
 LEVEL NYAN_CAT
 
-# --- Definicion de Elementos ---
-# Segmento circular: usado en niveles BABY, EASY y MEDIUM
 DEFINE SHAPE PIXEL:
-  STATE 1:
+    STATE 1:
     [1]
-
-  SHAPE_TYPE: CIRCULAR
+    SHAPE_TYPE: CIRCULAR
 END
 
-# Segmento triangular: usado en niveles HARD y NYAN_CAT
-DEFINE SHAPE PIXEL_TRI:
-  STATE 1:
-    [1]
-
-  SHAPE_TYPE: TRIANGULAR
+DEFINE POWERUP SHIELD_PU:
+    COLOR: #00FFAA
+    DURATION: 150
 END
 
-# --- Logica y Reglas ---
 ON START:
-  SPAWN PLAYER AT (9, 9)
-  SPAWN FOOD AT RANDOM
-END
-
-ON TICK:
-  MOVE PLAYER FORWARD
+    SPAWN PLAYER AT (10, 10)
+    SPAWN FOOD AT RANDOM
+    SPAWN CLOUD AT (5, 5)
+    SPAWN CLOUD AT (15, 15)
+    SPAWN CLOUD AT (5, 15)
+    SPAWN CLOUD AT (15, 5)
+    SPAWN SHIELD AT RANDOM
 END
 
 ON EAT_FOOD:
-  INCREASE_SCORE 10
-  GROW PLAYER 1
-  SPAWN FOOD AT RANDOM
+    INCREASE_SCORE 10
+    GROW PLAYER 1
+    SPAWN FOOD AT RANDOM
+    SPAWN POISON AT RANDOM
+END
+
+ON EAT_POISON:
+    DECREASE_SCORE 5
+END
+
+ON EAT_SHIELD:
+    GRANT_SHIELD
+END
+
+ON COLLISION_CLOUD:
+    RESET_SCORE
 END
 
 ON COLLISION_WALL:
-  GAME_OVER
+    GAME_OVER
 END
 
 ON COLLISION_SELF:
-  GAME_OVER
+    GAME_OVER
 END
 
-# --- Controles ---
+ON TICK:
+    MOVE PLAYER FORWARD
+END
+
 ON KEY_UP:
-  SET_DIRECTION UP
+    SET_DIRECTION UP
 END
 
 ON KEY_DOWN:
-  SET_DIRECTION DOWN
+    SET_DIRECTION DOWN
 END
 
 ON KEY_LEFT:
-  SET_DIRECTION LEFT
+    SET_DIRECTION LEFT
 END
 
 ON KEY_RIGHT:
-  SET_DIRECTION RIGHT
+    SET_DIRECTION RIGHT
 END

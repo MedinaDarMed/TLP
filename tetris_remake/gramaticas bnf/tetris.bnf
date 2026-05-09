@@ -1,3 +1,4 @@
+
 <programa> ::= <tipo_juego> <grid> <definiciones> <eventos>
 
 <tipo_juego> ::= "GAME_TYPE" "TETRIS"
