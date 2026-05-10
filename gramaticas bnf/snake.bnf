@@ -5,8 +5,12 @@
 <nivel_opcional> ::= "LEVEL" <nombre_nivel> | e
 <nombre_nivel>   ::= "BABY" | "EASY" | "MEDIUM" | "HARD" | "NYAN_CAT"
 
-<definiciones> ::= <definicion_shape> | <definicion_shape> <definiciones>
-<eventos>      ::= <evento> | <evento> <eventos>
+<definiciones> ::= <definicion_shape>
+                 | <definicion_powerup>
+                 | <definicion_levels>
+                 | <definicion_shape> <definiciones>
+                 | <definicion_powerup> <definiciones>
+                 | <definicion_levels> <definiciones>
 
 <definicion_shape> ::= "DEFINE" "SHAPE" <identificador> ":" <estados> <atributos_shape_opcionales> "END"
 <estados>          ::= <estado> | <estado> <estados>
@@ -20,18 +24,41 @@
 <atributo_shape_type>        ::= "SHAPE_TYPE" ":" <tipo_forma>
 <tipo_forma>                 ::= "RECTANGULAR" | "CIRCULAR" | "TRIANGULAR"
 
-<evento>              ::= "ON" <nombre_evento_snake> ":" <acciones_snake> "END"
-<nombre_evento_snake> ::= "START" | "TICK" | "EAT_FOOD" | "EAT_POISON" | "EAT_SHIELD" 
-                        | "COLLISION_WALL" | "COLLISION_SELF" | "COLLISION_CLOUD"
-                        | "KEY_UP" | "KEY_DOWN" | "KEY_LEFT" | "KEY_RIGHT"
-<acciones_snake>      ::= <accion_snake> | <accion_snake> <acciones_snake>
+<definicion_powerup> ::= "DEFINE" "POWERUP" <identificador> ":"
+                           <atributos_powerup>
+                         "END"
+<atributos_powerup>  ::= <atrib_pu> | <atrib_pu> <atributos_powerup>
+<atrib_pu>           ::= "COLOR" ":" <color_hex>
+                       | "DURATION" ":" <numero>
+
+<definicion_levels> ::= "DEFINE" "LEVELS" ":" <configs_nivel> "END"
+<configs_nivel>     ::= <config_nivel> | <config_nivel> <configs_nivel>
+<config_nivel>      ::= "LEVEL" <nombre_nivel> ":" <atribs_nivel> "END"
+<atribs_nivel>      ::= <atrib_nivel> | <atrib_nivel> <atribs_nivel>
+<atrib_nivel>       ::= "SPEED" ":" <numero>
+                      | "HAS_POISON" ":" <booleano>
+                      | "HAS_OBSTACLES" ":" <booleano>
+                      | "MIN_SCORE" ":" <numero>
+
+<booleano>  ::= "TRUE" | "FALSE"
+<color_hex> ::= "#" <hex_digit> <hex_digit> <hex_digit> <hex_digit> <hex_digit> <hex_digit>
+<hex_digit> ::= <digito> | "A" | "B" | "C" | "D" | "E" | "F"
+
+<eventos>              ::= <evento> | <evento> <eventos>
+<evento>               ::= "ON" <nombre_evento_snake> ":" <acciones_snake> "END"
+<nombre_evento_snake>  ::= "START" | "TICK" | "EAT_FOOD" | "EAT_POISON" | "EAT_SHIELD"
+                         | "COLLISION_WALL" | "COLLISION_SELF" | "COLLISION_CLOUD"
+                         | "KEY_UP" | "KEY_DOWN" | "KEY_LEFT" | "KEY_RIGHT"
+<acciones_snake>       ::= <accion_snake> | <accion_snake> <acciones_snake>
 
 <accion_snake>         ::= <accion_spawn_jugador> | <accion_spawn_comida> | <accion_spawn_especial>
-                         | <accion_mover> | <accion_direccion> | <accion_puntos> | <accion_crecer> 
+                         | <accion_mover> | <accion_direccion> | <accion_puntos> | <accion_crecer>
                          | <accion_gameover> | <accion_shield>
 <accion_spawn_jugador> ::= "SPAWN" "PLAYER" "AT" <coordenadas>
 <accion_spawn_comida>  ::= "SPAWN" "FOOD" "AT" "RANDOM"
-<accion_spawn_especial> ::= "SPAWN" "POISON" "AT" "RANDOM" | "SPAWN" "CLOUD" "AT" <coordenadas> | "SPAWN" "SHIELD" "AT" "RANDOM"
+<accion_spawn_especial> ::= "SPAWN" "POISON" "AT" "RANDOM"
+                         | "SPAWN" "CLOUD" "AT" <coordenadas>
+                         | "SPAWN" "SHIELD" "AT" "RANDOM"
 <accion_mover>         ::= "MOVE" "PLAYER" "FORWARD"
 <accion_direccion>     ::= "SET_DIRECTION" <direccion>
 <accion_puntos>        ::= "INCREASE_SCORE" <numero> | "DECREASE_SCORE" <numero> | "RESET_SCORE"

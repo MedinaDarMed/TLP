@@ -196,12 +196,18 @@
     ]
   }, 
   "version": "original", 
-  "powerups": {}, 
+  "shape_types": {
+    "T_PIECE": "RECTANGULAR", 
+    "L_PIECE": "RECTANGULAR", 
+    "I_PIECE": "RECTANGULAR"
+  }, 
+  "level": "BABY", 
   "shape_chances": {
     "T_PIECE": 1, 
     "L_PIECE": 1, 
     "I_PIECE": 1
   }, 
+  "powerups": {}, 
   "config": {
     "grid_size": [
       10, 

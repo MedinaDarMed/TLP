@@ -132,6 +132,14 @@ class Juego:
             SUBTEXT   = '#8888AA'   # etiquetas secundarias
             NEON_GRN  = '#00FFAA'   # valor de líneas / snake
 
+            self.colores_nivel = {
+                'BABY':     '#00FF88',   # verde menta — tranquilo
+                'EASY':     '#88FF00',   # verde lima
+                'MEDIUM':   '#FFCC00',   # amarillo — atención
+                'HARD':     '#FF4400',   # naranja rojo — peligro
+                'NYAN_CAT': '#FF00FF',   # magenta — modo especial
+            }
+
             self.marco_score = tk.Frame(self.root, width=150, bg=PANEL_BG)
             self.marco_score.pack(side=tk.RIGHT, fill=tk.Y, padx=8, pady=10)
             self.marco_score.pack_propagate(False)
@@ -147,7 +155,7 @@ class Juego:
                      font=('Consolas', 8)).pack(pady=(0, 6))
             tk.Label(self.marco_score, text=u'\u2550' * 13,
                      bg=PANEL_BG, fg='#2A1A5A', font=('Consolas', 8)).pack()
-
+            
             # — Puntuación —
             tk.Label(self.marco_score, text='PUNTUACION',
                      bg=PANEL_BG, fg=SUBTEXT,
@@ -171,6 +179,35 @@ class Juego:
 
             tk.Label(self.marco_score, text=u'\u2550' * 13,
                      bg=PANEL_BG, fg='#2A1A5A', font=('Consolas', 8)).pack()
+            
+            # --- Badge de nivel actual --- solo para SNAKE
+            if self.tipo_juego == 'SNAKE':
+                tk.Label(self.marco_score, text='NIVEL',
+                        bg=PANEL_BG, fg=SUBTEXT,
+                        font=('Consolas', 8, 'bold')).pack(pady=(10, 0))
+
+                self.label_nivel_actual = tk.Label(
+                    self.marco_score, text='BABY',
+                    bg=PANEL_BG, fg='#00FF88',
+                    font=('Consolas', 14, 'bold')
+                )
+                self.label_nivel_actual.pack(pady=(2, 6))
+            else:
+                self.label_nivel_actual = None
+
+           # --- Barra de escudo (Power-Up "No Morir") --- solo para SNAKE
+            if self.tipo_juego == 'SNAKE':
+                tk.Label(self.marco_score, text='ESCUDO',
+                        bg=PANEL_BG, fg=SUBTEXT,
+                        font=('Consolas', 8, 'bold')).pack(pady=(4, 0))
+
+                self.shield_bar_canvas = tk.Canvas(
+                    self.marco_score, width=120, height=12,
+                    bg='#0E0E1C', highlightthickness=1, highlightbackground='#2A1A5A'
+                )
+                self.shield_bar_canvas.pack(pady=(2, 8))
+            else:
+                self.shield_bar_canvas = None
 
             # — Preview "SIGUIENTE" — solo relevante para juegos con piezas
             # CAMBIO: se oculta completamente en SNAKE porque la serpiente
@@ -251,6 +288,8 @@ class Juego:
             self.label_lineas   = None
             self.label_powerup  = None
             self.preview_canvas = None
+            self.label_nivel_actual = None
+            self.shield_bar_canvas  = None
 
         self.root.bind('<Key>', self.manejar_input_gui)
 
@@ -341,6 +380,27 @@ class Juego:
             # Mostrar el nivel activo en el titulo de la ventana
             self.root.title('BrickScript - SNAKE  |  Nivel: BABY')
 
+            # --- Punto C: leer configuración de niveles desde JSON ---
+            self.levels_config = self.datos_juego.get('levels', {})
+
+            # Reconstruir umbrales y velocidades desde levels_config si existen,
+            # o mantener los valores hardcodeados como fallback (retrocompat).
+            if self.levels_config:
+                for nombre_nv, cfg in self.levels_config.items():
+                    self.umbrales_nivel[nombre_nv]   = cfg.get('min_score', self.umbrales_nivel.get(nombre_nv, 0))
+                    self.velocidades_nivel[nombre_nv] = cfg.get('speed', 15) / 100.0
+
+            # --- Power-Up "No Morir": wrap-around al chocar con pared con escudo ---
+            # (no requiere nueva variable; usa self.escudo_activo existente)
+
+            # --- Animaciones visuales: contadores de frame ---
+            self.food_pulse_frame    = 0   # Para pulso de la comida
+            self.poison_flash_frame  = 0   # Para parpadeo del veneno
+            self.shield_spin_frame   = 0   # Para rotación del ítem escudo
+            self.shield_flash_timer  = 0   # Flash verde al recoger escudo
+            self.nivel_flash_timer   = 0   # Frames restantes del flash de subida de nivel
+            self.nivel_anterior      = 'BABY'  # Para detectar cuándo cambia el nivel
+
         self.timer_gravedad = 0
         self.ejecutar_evento('ON_START')
         self.timer_id = None
@@ -412,9 +472,18 @@ class Juego:
                 self.borde_arcoiris_frame = (self.borde_arcoiris_frame + 6) % 360
                 r2, g2, b2 = self._hsv_a_rgb(self.borde_arcoiris_frame)
                 color_borde = '#{:02X}{:02X}{:02X}'.format(r2, g2, b2)
-                self.canvas.config(highlightbackground=color_borde)
+                self.canvas.config(highlightbackground=color_borde,
+                                   highlightthickness=3)
+            elif hasattr(self, 'escudo_activo') and self.escudo_activo:
+                pulso_borde = abs(math.sin(self.escudo_halo_frame * 0.12))
+                verde_int = int(150 + pulso_borde * 105)
+                color_escudo_borde = '#{:02X}{:02X}{:02X}'.format(
+                    0, verde_int, int(verde_int * 0.65))
+                self.canvas.config(highlightbackground=color_escudo_borde,
+                                   highlightthickness=3)
             else:
-                self.canvas.config(highlightbackground='#1A1A3A')
+                self.canvas.config(highlightbackground='#1A1A3A',
+                                   highlightthickness=2)
 
         # 1. Cuadricula estatica con estilo mejorado
         for y in range(self.alto):
@@ -466,39 +535,162 @@ class Juego:
 
         # 3. Snake y Comida
         if self.tipo_juego == 'SNAKE':
+            # Contadores de animación (se incrementan cada frame)
+            self.food_pulse_frame   = (self.food_pulse_frame   + 1) % 360
+            self.poison_flash_frame = (self.poison_flash_frame + 1) % 60
+            self.shield_spin_frame  = (self.shield_spin_frame  + 1) % 360
+
             # Dibujar comida
             if self.posicion_comida:
                 x, y = self.posicion_comida
+                ts = self.taman_celda
+                px, py = x * ts, y * ts
+
                 if self.es_remake:
-                    self.dibujar_celda_estilo(x, y, COLOR_FOOD)
+                    # Pulso: el radio oscila ±3px con una onda seno
+                    pulso = math.sin(self.food_pulse_frame * 0.18)
+                    radio_extra = int(pulso * 3)
+                    margen = 3 - radio_extra
+                    # Sombra/halo exterior
+                    self.canvas.create_oval(
+                        px + margen - 2, py + margen - 2,
+                        px + ts - margen + 2, py + ts - margen + 2,
+                        fill='#880000', outline=''
+                    )
+                    # Círculo principal
+                    self.canvas.create_oval(
+                        px + margen, py + margen,
+                        px + ts - margen, py + ts - margen,
+                        fill='#FF2222', outline='#FF8888', width=1
+                    )
+                    # Brillo superior izquierdo
+                    self.canvas.create_oval(
+                        px + margen + 2, py + margen + 2,
+                        px + margen + 7, py + margen + 7,
+                        fill='#FF9999', outline=''
+                    )
                 else:
                     self.dibujar_celda(x, y, COLOR_FOOD)
 
             # --- SNAKE EVOLVED: Dibujar fruta venenosa (magenta + X) ---
             if self.posicion_veneno:
                 vx, vy = self.posicion_veneno
-                cv = '#FF00FF'
-                if self.es_remake: self.dibujar_celda_estilo(vx, vy, cv)
-                else: self.dibujar_celda(vx, vy, cv)
                 ts = self.taman_celda
                 px, py = vx * ts, vy * ts
-                self.canvas.create_line(px+4, py+4, px+ts-4, py+ts-4, fill='black', width=2)
-                self.canvas.create_line(px+ts-4, py+4, px+4, py+ts-4, fill='black', width=2)
+
+                if self.es_remake:
+                    # Parpadeo: alterna entre dos tonos de magenta cada 15 frames
+                    cv = '#FF00FF' if (self.poison_flash_frame // 15) % 2 == 0 else '#CC00CC'
+                    # Halo exterior amenazante
+                    self.canvas.create_oval(
+                        px + 1, py + 1, px + ts - 1, py + ts - 1,
+                        fill=cv, outline='#880088', width=2
+                    )
+                    # X en blanco (más gruesa y visible)
+                    self.canvas.create_line(px+5, py+5, px+ts-5, py+ts-5,
+                                            fill='white', width=3)
+                    self.canvas.create_line(px+ts-5, py+5, px+5, py+ts-5,
+                                            fill='white', width=3)
+                    # Calavera simplificada: dos puntos (ojos)
+                    self.canvas.create_oval(px+6, py+6, px+10, py+10, fill='black', outline='')
+                    self.canvas.create_oval(px+ts-10, py+6, px+ts-6, py+10, fill='black', outline='')
+                else:
+                    self.dibujar_celda(vx, vy, '#FF00FF')
+                    self.canvas.create_line(px+4, py+4, px+ts-4, py+ts-4, fill='black', width=2)
+                    self.canvas.create_line(px+ts-4, py+4, px+4, py+ts-4, fill='black', width=2)
 
             # --- SNAKE EVOLVED: Dibujar nubes (gris + ~) ---
             for nx, ny in self.posiciones_nubes:
                 ts = self.taman_celda
                 px, py = nx * ts, ny * ts
-                self.canvas.create_oval(px+2, py+2, px+ts-2, py+ts-2, fill='#888888', outline='#555555', width=2)
-                self.canvas.create_text(px+ts/2, py+ts/2, text='~', fill='#333333', font=('Consolas', 10, 'bold'))
+                cx, cy = px + ts / 2, py + ts / 2
 
-            # --- SNAKE EVOLVED: Dibujar escudo (diamante cian) ---
+                if self.es_remake:
+                    # Nube "esponjosa": tres óvalos superpuestos
+                    self.canvas.create_oval(px+2,       cy-4,   px+ts-2, cy+ts//2-2,
+                                            fill='#777777', outline='')           # base
+                    self.canvas.create_oval(px+3,       py+3,   cx+2,    cy+4,
+                                            fill='#999999', outline='')           # izq arriba
+                    self.canvas.create_oval(cx-2,       py+2,   px+ts-3, cy+5,
+                                            fill='#AAAAAA', outline='')           # der arriba
+                    # Borde unificador
+                    self.canvas.create_oval(px+1, py+1, px+ts-1, py+ts-1,
+                                            fill='', outline='#555555', width=1)
+                else:
+                    self.canvas.create_oval(px+2, py+2, px+ts-2, py+ts-2,
+                                            fill='#888888', outline='#555555', width=2)
+                    self.canvas.create_text(px+ts/2, py+ts/2, text='~',
+                                            fill='#333333', font=('Consolas', 10, 'bold'))
+
+            # --- SNAKE EVOLVED: Dibujar escudo animado ---
             if self.posicion_escudo:
                 sx, sy = self.posicion_escudo
                 ts = self.taman_celda
                 px, py = sx * ts, sy * ts
-                cx, cy = px + ts/2, py + ts/2
-                self.canvas.create_polygon(cx, py+2, px+ts-2, cy, cx, py+ts-2, px+2, cy, fill='#00FFAA', outline='#00CC88', width=2)
+                cx, cy = px + ts / 2, py + ts / 2
+
+                # Anillo externo giratorio (rota con shield_spin_frame)
+                import math as _math
+                ang = self.shield_spin_frame * _math.pi / 180
+                for i in range(4):
+                    a = ang + i * (_math.pi / 2)
+                    rx2 = cx + _math.cos(a) * (ts * 0.48)
+                    ry2 = cy + _math.sin(a) * (ts * 0.48)
+                    self.canvas.create_oval(
+                        rx2 - 2, ry2 - 2, rx2 + 2, ry2 + 2,
+                        fill='#00FFCC', outline=''
+                    )
+
+                # Halo exterior pulsante
+                pulso_item = abs(_math.sin(self.shield_spin_frame * 0.06))
+                radio_halo = int(ts * 0.52 + pulso_item * ts * 0.1)
+                alpha_halo = int(60 + pulso_item * 80)
+                color_halo_item = '#{:02X}{:02X}{:02X}'.format(0, alpha_halo, int(alpha_halo * 0.85))
+                self.canvas.create_oval(
+                    cx - radio_halo, cy - radio_halo,
+                    cx + radio_halo, cy + radio_halo,
+                    fill='', outline=color_halo_item, width=2
+                )
+
+                # Cuerpo del escudo (fondo oscuro + borde brillante)
+                self.canvas.create_oval(
+                    px + 4, py + 4, px + ts - 4, py + ts - 4,
+                    fill='#003322', outline='#00FFAA', width=2
+                )
+                # Símbolo ⛨ más grande y visible
+                self.canvas.create_text(
+                    cx, cy, text=u'\u26E8',
+                    fill='#00FFAA', font=('Consolas', 12, 'bold')
+                )
+
+            # --- Notificación visual de subida de nivel ---
+            if self.es_remake and self.nivel_flash_timer > 0:
+                self.nivel_flash_timer -= 1
+                # Solo mostrar durante los primeros 30 frames
+                if self.nivel_flash_timer > 5:
+                    color_nv = self.colores_nivel.get(self.level, '#FFFFFF')
+                    alpha_t  = float(self.nivel_flash_timer) / 30.0
+
+                    # Fondo semitransparente (simulado con un rectángulo oscuro)
+                    self.canvas.create_rectangle(
+                        0, self.alto_canvas // 2 - 22,
+                        self.ancho_canvas, self.alto_canvas // 2 + 22,
+                        fill='#050515', outline=''
+                    )
+                    # Texto del nuevo nivel
+                    self.canvas.create_text(
+                        self.ancho_canvas // 2, self.alto_canvas // 2 - 8,
+                        text=u'\u2b06 NIVEL NUEVO \u2b06',
+                        fill='#888888', font=('Consolas', 9)
+                    )
+                    self.canvas.create_text(
+                        self.ancho_canvas // 2, self.alto_canvas // 2 + 8,
+                        text=self.level,
+                        fill=color_nv, font=('Consolas', 16, 'bold')
+                    )
+                # Actualizar badge de nivel en panel
+                self.actualizar_marcador()
+
             # Dibujar serpiente
             # ACTIVIDAD 4 - Logica de niveles y formas:
             # El nivel define el comportamiento visual de la serpiente.
@@ -613,10 +805,38 @@ class Juego:
                 ts = self.taman_celda
                 cx, cy = hx * ts + ts/2, hy * ts + ts/2
                 pulso = abs(math.sin(self.escudo_halo_frame * 0.15))
-                radio = int(ts * 0.7 + pulso * ts * 0.4)
-                intensidad = int(150 + pulso * 105)
-                color_halo = '#{:02X}{:02X}{:02X}'.format(0, intensidad, int(intensidad * 0.7))
-                self.canvas.create_oval(cx-radio, cy-radio, cx+radio, cy+radio, outline=color_halo, width=3)
+
+                # Anillo exterior (más grande, más tenue)
+                radio_ext = int(ts * 0.9 + pulso * ts * 0.35)
+                int_ext = int(80 + pulso * 70)
+                color_ext = '#{:02X}{:02X}{:02X}'.format(0, int_ext, int(int_ext * 0.7))
+                self.canvas.create_oval(
+                    cx - radio_ext, cy - radio_ext,
+                    cx + radio_ext, cy + radio_ext,
+                    outline=color_ext, width=1
+                )
+
+                # Anillo interior (más pequeño, más brillante)
+                radio_int = int(ts * 0.65 + pulso * ts * 0.2)
+                int_int = int(160 + pulso * 95)
+                color_int = '#{:02X}{:02X}{:02X}'.format(0, int_int, int(int_int * 0.65))
+                self.canvas.create_oval(
+                    cx - radio_int, cy - radio_int,
+                    cx + radio_int, cy + radio_int,
+                    outline=color_int, width=3
+                )
+
+                # Ticks de tiempo restante (arco que se va vaciando)
+                if self.escudo_restante > 0:
+                    duracion_max = 150
+                    fraccion = float(self.escudo_restante) / duracion_max
+                    for i in range(8):
+                        a = math.pi * 2 * i / 8
+                        if i / 8 < fraccion:
+                            tx = cx + math.cos(a) * (radio_ext + 5)
+                            ty = cy + math.sin(a) * (radio_ext + 5)
+                            self.canvas.create_oval(tx-2, ty-2, tx+2, ty+2,
+                                                    fill='#00FFAA', outline='')
 
         # CAMBIO (Punto C - Visual): flash de pantalla al spawnear un power-up.
         # Se dibuja un rectangulo semitransparente encima de todo el canvas
@@ -639,6 +859,21 @@ class Juego:
                     self.ancho_canvas / 2, self.alto_canvas / 2 + 12,
                     text=self.nombre_pieza_actual, fill='#FF88FF',
                     font=('Consolas', 10)
+                )
+
+        # Flash verde al recoger el escudo
+        if hasattr(self, 'shield_flash_timer') and self.shield_flash_timer > 0:
+            self.shield_flash_timer -= 1
+            if self.shield_flash_timer % 2 == 0:
+                self.canvas.create_rectangle(
+                    0, 0, self.ancho_canvas, self.alto_canvas,
+                    fill='#003322', outline=''
+                )
+            if self.shield_flash_timer > 3:
+                self.canvas.create_text(
+                    self.ancho_canvas / 2, self.alto_canvas / 2 - 14,
+                    text=u'\u26E8  ESCUDO ACTIVO  \u26E8',
+                    fill='#00FFAA', font=('Consolas', 14, 'bold')
                 )
 
         if self.es_remake and self.tipo_juego == 'TETRIS':
@@ -741,6 +976,7 @@ class Juego:
                             break
                     self.escudo_activo = True
                     self.escudo_restante = duracion_ticks
+                    self.shield_flash_timer = 12
                 elif verbo == 'GAME_OVER': 
                     self.juego_terminado = True
 
@@ -753,10 +989,18 @@ class Juego:
                     if verbo == 'SPAWN':
                         if objeto == 'PLAYER': self.snake_spawn_jugador(accion)
                         elif objeto == 'FOOD': self.snake_spawn_comida()
-                        elif objeto == 'POISON': self.snake_spawn_veneno()
+                        elif objeto == 'POISON':
+                            # Punto C: solo spawnear veneno si el nivel actual lo permite
+                            cfg_nivel = self.levels_config.get(self.level, {})
+                            if cfg_nivel.get('has_poison', True):  # True = fallback sin config
+                                self.snake_spawn_veneno()
+                            # Si has_poison es False (ej. BABY), simplemente no se crea la fruta
                         elif objeto == 'CLOUD':
-                            coords = params[0] if params else [0, 0]
-                            self.posiciones_nubes.append((coords[0], coords[1]))
+                            # Punto C: solo spawnear nubes si el nivel actual lo permite
+                            cfg_nivel = self.levels_config.get(self.level, {})
+                            if cfg_nivel.get('has_obstacles', True):
+                                coords = params[0] if params else [0, 0]
+                                self.posiciones_nubes.append((coords[0], coords[1]))
                         elif objeto == 'SHIELD': self.snake_spawn_escudo()
                     
                     if verbo == 'MOVE'  and objeto == 'PLAYER': self.snake_mover_jugador()
@@ -1014,6 +1258,7 @@ class Juego:
         coords = accion['params'][0] if accion['params'] else [self.ancho / 2, self.alto / 2]
         self.serpiente_cuerpo    = [(coords[0], coords[1])]
         self.serpiente_direccion = (1, 0)
+        
 
     def snake_spawn_comida(self):
         # Evitar posiciones ocupadas por serpiente, veneno, nubes y escudo
@@ -1038,13 +1283,20 @@ class Juego:
 
         # Colision con paredes
         if not (0 <= nueva_cabeza[0] < self.ancho and 0 <= nueva_cabeza[1] < self.alto):
-            self.ejecutar_evento('ON_COLLISION_WALL')
-            return
+            if self.escudo_activo:
+                # "No Morir": wrap-around en lugar de muerte
+                nueva_cabeza = (nueva_cabeza[0] % self.ancho,
+                                nueva_cabeza[1] % self.alto)
+            else:
+                self.ejecutar_evento('ON_COLLISION_WALL')
+                return
 
         # Colision consigo misma
         if nueva_cabeza in self.serpiente_cuerpo[:-1]:
-            self.ejecutar_evento('ON_COLLISION_SELF')
-            return
+            if not self.escudo_activo:
+                self.ejecutar_evento('ON_COLLISION_SELF')
+                return
+            # Con escudo: se ignora la colisión (la serpiente sigue)
 
         self.serpiente_cuerpo.insert(0, nueva_cabeza)
 
@@ -1130,10 +1382,76 @@ class Juego:
             self.level = nivel_nuevo
             self.velocidad_gravedad = self.velocidades_nivel.get(self.level, 0.15)
             self.root.title('BrickScript - SNAKE  |  Nivel: ' + self.level)
+            # NUEVO: activar flash de subida de nivel
+            self.nivel_flash_timer = 30    # 30 frames ≈ 1.5 segundos de notificación
+            self.nivel_anterior    = self.level
+            # NUEVO: limpiar nubes si el nivel nuevo no las admite
+            if self.levels_config:
+                cfg = self.levels_config.get(self.level, {})
+
+                if cfg.get('has_obstacles', True):
+                    # Reponer nubes en niveles altos
+                    self.posiciones_nubes = [(5, 5), (15, 15), (5, 15), (15, 5)]
+
+                    # Reponer el escudo si no existe
+                    if self.posicion_escudo is None:
+                        self.snake_spawn_escudo()
+                else:
+                    # En niveles sin obstáculos, limpiar todo
+                    self.posiciones_nubes = []
+                    self.posicion_escudo = None
 
     def actualizar_marcador(self):
         if self.es_remake:
             if self.label_score: self.label_score.config(text=str(self.puntuacion))
+            # Actualizar badge de nivel
+            if hasattr(self, 'label_nivel_actual') and self.label_nivel_actual:
+                color_nv = self.colores_nivel.get(self.level, '#FFFFFF')
+                self.label_nivel_actual.config(text=self.level, fg=color_nv)
+
+            # Actualizar barra de escudo
+            # Actualizar barra de escudo
+            if hasattr(self, 'shield_bar_canvas') and self.shield_bar_canvas:
+                self.shield_bar_canvas.delete('all')
+                # Calcular duración máxima (siempre, no solo cuando está activo)
+                duracion_max = 150
+                powerups = self.datos_juego.get('powerups', {})
+                for pu in powerups.values():
+                    if pu.get('duration'):
+                        duracion_max = pu['duration']
+                        break
+
+                if self.escudo_activo and self.escudo_restante > 0:
+                    # Fondo con borde verde
+                    self.shield_bar_canvas.create_rectangle(
+                        0, 0, 120, 12, fill='#0A1A10', outline='#00AA66', width=1
+                    )
+                    # Segmentos de la barra (10 segmentos)
+                    num_seg = 10
+                    seg_activos = int(num_seg * (float(self.escudo_restante) / duracion_max))
+                    for s in range(num_seg):
+                        sx1 = s * 12 + 1
+                        sx2 = sx1 + 10
+                        if s < seg_activos:
+                            verde = min(255, 180 + s * 6)
+                            col_seg = '#{:02X}{:02X}{:02X}'.format(0, verde, int(verde * 0.6))
+                            self.shield_bar_canvas.create_rectangle(
+                                sx1, 2, sx2, 10, fill=col_seg, outline=''
+                            )
+                        else:
+                            self.shield_bar_canvas.create_rectangle(
+                                sx1, 2, sx2, 10, fill='#0D1A10', outline=''
+                            )
+                else:
+                    # Sin escudo: barra vacía con borde gris
+                    self.shield_bar_canvas.create_rectangle(
+                        0, 0, 120, 12, fill='#0A0A15', outline='#2A2A3A', width=1
+                    )
+                    for s in range(10):
+                        self.shield_bar_canvas.create_rectangle(
+                            s * 12 + 1, 2, s * 12 + 11, 10,
+                            fill='#111122', outline=''
+                        )
             if self.label_lineas and self.tipo_juego == 'TETRIS':
                 self.label_lineas.config(text=str(self.lineas_eliminadas_total))
         else:
@@ -1142,9 +1460,54 @@ class Juego:
     # SALIDA
 
     def mostrar_game_over(self):
-        tkMessageBox.showinfo("Juego Terminado", "Puntuacion Final: " + str(self.puntuacion))
-        self.root.destroy()
-        sys.exit(0)
+        """Muestra una ventana de Game Over estilizada en lugar del messagebox genérico."""
+        ventana_go = tk.Toplevel(self.root)
+        ventana_go.title('GAME OVER')
+        ventana_go.resizable(False, False)
+        ventana_go.configure(bg='#07070E')
+        ventana_go.grab_set()  # Modal
+
+        # Centrar sobre la ventana principal
+        ventana_go.geometry('280x200+{}+{}'.format(
+            self.root.winfo_x() + 60,
+            self.root.winfo_y() + 80
+        ))
+
+        tk.Label(ventana_go, text='GAME OVER',
+                bg='#07070E', fg='#FF2222',
+                font=('Consolas', 22, 'bold')).pack(pady=(24, 4))
+
+        tk.Label(ventana_go, text=u'\u2550' * 22,
+                bg='#07070E', fg='#2A1A5A',
+                font=('Consolas', 8)).pack()
+
+        tk.Label(ventana_go, text='PUNTUACION FINAL',
+                bg='#07070E', fg='#888888',
+                font=('Consolas', 9)).pack(pady=(12, 2))
+
+        tk.Label(ventana_go, text=str(self.puntuacion),
+                bg='#07070E', fg='#FFFFFF',
+                font=('Consolas', 28, 'bold')).pack()
+
+        color_nv = self.colores_nivel.get(self.level, '#FFFFFF') if hasattr(self, 'colores_nivel') else '#FFFFFF'
+        tk.Label(ventana_go, text='Nivel alcanzado: ' + self.level,
+                bg='#07070E', fg=color_nv,
+                font=('Consolas', 9)).pack(pady=(6, 0))
+
+        def salir():
+            ventana_go.destroy()
+            self.root.destroy()
+            sys.exit(0)
+
+        tk.Button(ventana_go, text='  SALIR  ',
+                bg='#1A0033', fg='#FF44FF',
+                activebackground='#330055', activeforeground='white',
+                font=('Consolas', 11, 'bold'),
+                relief=tk.FLAT, cursor='hand2',
+                command=salir).pack(pady=(16, 0))
+
+        ventana_go.protocol('WM_DELETE_WINDOW', salir)
+        self.root.wait_window(ventana_go)
 
 
 if __name__ == "__main__":

@@ -69,6 +69,7 @@ class Parser:
             "shape_types":   {},      # NUEVO
             "level":         "BABY",  # NUEVO
             "powerups":      {},   # NUEVO (Actividad 3 - Punto C)
+            "levels": {},      # NUEVO — Punto C: configuración de niveles desde gramática
             "events":        {}
         }
 
@@ -83,13 +84,12 @@ class Parser:
                 self.consumir('LEVEL')
                 self.ast['level'] = self.consumir()
             elif token_actual == 'DEFINE':
-                # CAMBIO (Actividad 3 - Punto C):
-                # Se distingue entre DEFINE SHAPE y DEFINE POWERUP
-                # mirando el token siguiente sin consumirlo (lookahead).
                 siguiente = (self.tokens[self.posicion + 1]
                             if self.posicion + 1 < len(self.tokens) else '')
                 if siguiente == 'POWERUP':
                     self.parsear_powerup()
+                elif siguiente == 'LEVELS':        
+                    self.parsear_levels()          
                 else:
                     self.parsear_shape()
             elif token_actual == 'ON':
@@ -186,6 +186,7 @@ class Parser:
         self.ast['shape_colors'][nombre_shape]  = color
         self.ast['shape_chances'][nombre_shape] = chance
         self.ast['shape_types'][nombre_shape]   = shape_type
+
     def parsear_powerup(self):
         self.consumir('DEFINE')
         self.consumir('POWERUP')
@@ -248,6 +249,70 @@ class Parser:
             'color': color,
             'chance': chance
         }
+
+    def parsear_levels(self):
+        """
+        Parsea el bloque:
+            DEFINE LEVELS:
+                LEVEL BABY:
+                    SPEED: 15
+                    HAS_POISON: FALSE
+                    HAS_OBSTACLES: FALSE
+                    MIN_SCORE: 0
+                END
+                ...
+            END
+        Resultado en self.ast['levels']:
+            {
+                "BABY":     {"speed": 15, "has_poison": False, "has_obstacles": False, "min_score": 0},
+                "EASY":     {...},
+                ...
+            }
+        """
+        self.consumir('DEFINE')
+        self.consumir('LEVELS')
+        self.consumir(':')
+
+        while self.posicion < len(self.tokens) and self.tokens[self.posicion] != 'END':
+            if self.tokens[self.posicion] == 'LEVEL':
+                self.consumir('LEVEL')
+                nombre_nivel = self.consumir()   # BABY, EASY, MEDIUM, HARD, NYAN_CAT
+                self.consumir(':')
+
+                cfg = {
+                    'speed':         15,    # valor por defecto (0.15 s/tick)
+                    'has_poison':    False,
+                    'has_obstacles': False,
+                    'min_score':     0,
+                }
+
+                while self.posicion < len(self.tokens) and self.tokens[self.posicion] != 'END':
+                    atrib = self.tokens[self.posicion]
+                    if atrib == 'SPEED':
+                        self.consumir('SPEED')
+                        self.consumir(':')
+                        cfg['speed'] = int(self.consumir())
+                    elif atrib == 'HAS_POISON':
+                        self.consumir('HAS_POISON')
+                        self.consumir(':')
+                        cfg['has_poison'] = (self.consumir() == 'TRUE')
+                    elif atrib == 'HAS_OBSTACLES':
+                        self.consumir('HAS_OBSTACLES')
+                        self.consumir(':')
+                        cfg['has_obstacles'] = (self.consumir() == 'TRUE')
+                    elif atrib == 'MIN_SCORE':
+                        self.consumir('MIN_SCORE')
+                        self.consumir(':')
+                        cfg['min_score'] = int(self.consumir())
+                    else:
+                        self.posicion += 1   # token desconocido, saltar
+
+                self.consumir('END')   # END del LEVEL interno
+                self.ast['levels'][nombre_nivel] = cfg
+            else:
+                self.posicion += 1
+
+        self.consumir('END')   # END del DEFINE LEVELS
 
     # FUNCION CORREGIDA
     def parsear_evento(self):

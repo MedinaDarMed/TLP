@@ -2,6 +2,39 @@ GAME_TYPE SNAKE
 GAME_GRID (20, 20)
 LEVEL NYAN_CAT
 
+DEFINE LEVELS:
+    LEVEL BABY:
+        SPEED: 15
+        HAS_POISON: FALSE
+        HAS_OBSTACLES: FALSE
+        MIN_SCORE: 0
+    END
+    LEVEL EASY:
+        SPEED: 10
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: FALSE
+        MIN_SCORE: 20
+    END
+    LEVEL MEDIUM:
+        SPEED: 8
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: FALSE
+        MIN_SCORE: 50
+    END
+    LEVEL HARD:
+        SPEED: 6
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: TRUE
+        MIN_SCORE: 80
+    END
+    LEVEL NYAN_CAT:
+        SPEED: 4
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: TRUE
+        MIN_SCORE: 120
+    END
+END
+
 DEFINE SHAPE PIXEL:
     STATE 1:
     [1]

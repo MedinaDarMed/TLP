@@ -1,4 +1,16 @@
 {
+  "levels": {}, 
+  "shape_types": {
+    "PIXEL": "RECTANGULAR"
+  }, 
+  "shape_colors": {
+    "PIXEL": "#00FFFF"
+  }, 
+  "level": "BABY", 
+  "shape_chances": {
+    "PIXEL": 1
+  }, 
+  "tipo_juego": "SNAKE", 
   "shapes": {
     "PIXEL": [
       [
@@ -9,23 +21,12 @@
     ]
   }, 
   "version": "original", 
-  "shape_types": {
-    "PIXEL": "RECTANGULAR"
-  }, 
-  "level": "BABY", 
-  "shape_chances": {
-    "PIXEL": 1
-  }, 
   "powerups": {}, 
   "config": {
     "grid_size": [
       18, 
       18
     ]
-  }, 
-  "tipo_juego": "SNAKE", 
-  "shape_colors": {
-    "PIXEL": "#00FFFF"
   }, 
   "events": {
     "ON_KEY_DOWN": [

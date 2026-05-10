@@ -1,4 +1,47 @@
 {
+  "levels": {
+    "BABY": {
+      "has_poison": false, 
+      "has_obstacles": false, 
+      "speed": 15, 
+      "min_score": 0
+    }, 
+    "NYAN_CAT": {
+      "has_poison": true, 
+      "has_obstacles": true, 
+      "speed": 4, 
+      "min_score": 120
+    }, 
+    "MEDIUM": {
+      "has_poison": true, 
+      "has_obstacles": false, 
+      "speed": 8, 
+      "min_score": 50
+    }, 
+    "HARD": {
+      "has_poison": true, 
+      "has_obstacles": true, 
+      "speed": 6, 
+      "min_score": 80
+    }, 
+    "EASY": {
+      "has_poison": true, 
+      "has_obstacles": false, 
+      "speed": 10, 
+      "min_score": 20
+    }
+  }, 
+  "shape_types": {
+    "PIXEL": "CIRCULAR"
+  }, 
+  "shape_colors": {
+    "PIXEL": "#00FFFF"
+  }, 
+  "level": "NYAN_CAT", 
+  "shape_chances": {
+    "PIXEL": 1
+  }, 
+  "tipo_juego": "SNAKE", 
   "shapes": {
     "PIXEL": [
       [
@@ -9,13 +52,6 @@
     ]
   }, 
   "version": "remake", 
-  "shape_types": {
-    "PIXEL": "CIRCULAR"
-  }, 
-  "level": "NYAN_CAT", 
-  "shape_chances": {
-    "PIXEL": 1
-  }, 
   "powerups": {
     "SHIELD_PU": {
       "trigger_type": null, 
@@ -31,10 +67,6 @@
       20, 
       20
     ]
-  }, 
-  "tipo_juego": "SNAKE", 
-  "shape_colors": {
-    "PIXEL": "#00FFFF"
   }, 
   "events": {
     "ON_KEY_DOWN": [
