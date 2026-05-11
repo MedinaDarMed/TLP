@@ -3,7 +3,11 @@
 <tipo_juego>     ::= "GAME_TYPE" "SNAKE"
 <grid>           ::= "GAME_GRID" "(" <numero> "," <numero> ")"
 <nivel_opcional> ::= "LEVEL" <nombre_nivel> | e
-<nombre_nivel>   ::= "BABY" | "EASY" | "MEDIUM" | "HARD" | "NYAN_CAT"
+
+# Se agrega "ENTUSIASTA" como nombre de nivel valido.
+# Los tres niveles del enunciado son: BABY | ENTUSIASTA | NYAN_CAT.
+# Se conservan EASY/MEDIUM/HARD para retrocompatibilidad con archivos anteriores.
+<nombre_nivel>   ::= "BABY" | "ENTUSIASTA" | "NYAN_CAT" | "EASY" | "MEDIUM" | "HARD"
 
 <definiciones> ::= <definicion_shape>
                  | <definicion_powerup>
@@ -24,13 +28,22 @@
 <atributo_shape_type>        ::= "SHAPE_TYPE" ":" <tipo_forma>
 <tipo_forma>                 ::= "RECTANGULAR" | "CIRCULAR" | "TRIANGULAR"
 
+
+# Se agrega DURATION_SECONDS como alternativa a DURATION.
+# Permite expresar la duracion del power-up en segundos legibles.
+# El compilador se encarga de convertir a ticks internos (segundos x 20).
 <definicion_powerup> ::= "DEFINE" "POWERUP" <identificador> ":"
                            <atributos_powerup>
                          "END"
 <atributos_powerup>  ::= <atrib_pu> | <atrib_pu> <atributos_powerup>
 <atrib_pu>           ::= "COLOR" ":" <color_hex>
                        | "DURATION" ":" <numero>
+                       | "DURATION_SECONDS" ":" <numero>
 
+# Se agrega HAS_POWERUP para controlar si el escudo aparece en cada nivel.
+#   BABY       -> HAS_POWERUP: FALSE  (sin escudo)
+#   ENTUSIASTA -> HAS_POWERUP: TRUE   (escudo habilitado)
+#   NYAN_CAT   -> HAS_POWERUP: TRUE   (escudo habilitado)
 <definicion_levels> ::= "DEFINE" "LEVELS" ":" <configs_nivel> "END"
 <configs_nivel>     ::= <config_nivel> | <config_nivel> <configs_nivel>
 <config_nivel>      ::= "LEVEL" <nombre_nivel> ":" <atribs_nivel> "END"
@@ -38,6 +51,7 @@
 <atrib_nivel>       ::= "SPEED" ":" <numero>
                       | "HAS_POISON" ":" <booleano>
                       | "HAS_OBSTACLES" ":" <booleano>
+                      | "HAS_POWERUP" ":" <booleano>
                       | "MIN_SCORE" ":" <numero>
 
 <booleano>  ::= "TRUE" | "FALSE"

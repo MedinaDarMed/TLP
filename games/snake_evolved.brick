@@ -7,34 +7,26 @@ DEFINE LEVELS:
         SPEED: 15
         HAS_POISON: FALSE
         HAS_OBSTACLES: FALSE
+        HAS_POWERUP: FALSE
         MIN_SCORE: 0
     END
-    LEVEL EASY:
-        SPEED: 10
-        HAS_POISON: TRUE
-        HAS_OBSTACLES: FALSE
-        MIN_SCORE: 20
-    END
-    LEVEL MEDIUM:
+    LEVEL ENTUSIASTA:
         SPEED: 8
         HAS_POISON: TRUE
         HAS_OBSTACLES: FALSE
-        MIN_SCORE: 50
-    END
-    LEVEL HARD:
-        SPEED: 6
-        HAS_POISON: TRUE
-        HAS_OBSTACLES: TRUE
-        MIN_SCORE: 80
+        HAS_POWERUP: TRUE
+        MIN_SCORE: 30
     END
     LEVEL NYAN_CAT:
-        SPEED: 4
+        SPEED: 3
         HAS_POISON: TRUE
         HAS_OBSTACLES: TRUE
-        MIN_SCORE: 120
+        HAS_POWERUP: TRUE
+        MIN_SCORE: 80
     END
 END
 
+# Segmentos de la serpiente con forma circular
 DEFINE SHAPE PIXEL:
     STATE 1:
     [1]
@@ -43,7 +35,7 @@ END
 
 DEFINE POWERUP SHIELD_PU:
     COLOR: #00FFAA
-    DURATION: 150
+    DURATION_SECONDS: 8
 END
 
 ON START:

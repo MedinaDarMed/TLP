@@ -1,0 +1,593 @@
+================================================================================
+          BITÁCORA FINAL DE CAMBIOS: PROYECTO BRICKSCRIPT - SNAKE EVOLVED
+================================================================================
+
+Cambios realizados (Actividad 4 - Snake).
+---------------------------------------------------------------------------------------------------------------------
+
+Se implemento la Actividad 4: Evolucion del Lenguaje y Logica de Niveles (Caso Snake).
+Los cambios garantizan retrocompatibilidad: el snake.brick original sigue siendo compilable
+y ejecutable sin errores.
+
+==============================================
+A. Personalizacion Geometrica de la Serpiente
+==============================================
+
+# snake.brick
+
+* Cambio 1 — Se agrega un segundo SHAPE de tipo TRIANGULAR para demostrar la nueva forma:
+
+- ANTES
+(solo existia PIXEL con SHAPE_TYPE: CIRCULAR)
+
+- DESPUES
+DEFINE SHAPE PIXEL_TRI:
+  STATE 1:
+    [1]
+  SHAPE_TYPE: TRIANGULAR
+END
+
+* Cambio 2 — Se mantiene LEVEL NYAN_CAT en el archivo para activar el nivel mas alto.
+
+# snake.bnf
+
+* Cambio 1 — <programa>: se agrega <nivel_opcional> como elemento del programa
+
+- ANTES
+<programa> ::= <tipo_juego> <grid> <definiciones> <eventos>
+
+- DESPUES
+<programa> ::= <tipo_juego> <grid> <nivel_opcional> <definiciones> <eventos>
+
+* Cambio 2 — Se agrega la regla <nivel_opcional> y <nombre_nivel> (no existian)
+
+- ANTES
+(no existian estas reglas)
+
+- DESPUES
+<nivel_opcional> ::= "LEVEL" <nombre_nivel> | e
+<nombre_nivel>   ::= "BABY" | "EASY" | "MEDIUM" | "HARD" | "NYAN_CAT"
+
+* Cambio 3 — <definicion_shape>: se agrega <atributos_shape_opcionales> antes del END
+
+- ANTES
+<definicion_shape> ::= "DEFINE" "SHAPE" <identificador> ":" <estados> "END"
+
+- DESPUES
+<definicion_shape> ::= "DEFINE" "SHAPE" <identificador> ":" <estados> <atributos_shape_opcionales> "END"
+
+* Cambio 4 — Se agregan reglas para SHAPE_TYPE (no existian)
+
+- ANTES
+(no existian estas reglas)
+
+- DESPUES
+<atributos_shape_opcionales> ::= <atributo_shape> <atributos_shape_opcionales> | e
+<atributo_shape>             ::= <atributo_shape_type>
+<atributo_shape_type>        ::= "SHAPE_TYPE" ":" <tipo_forma>
+<tipo_forma>                 ::= "RECTANGULAR" | "CIRCULAR" | "TRIANGULAR"
+
+# runtime.py — Seccion de dibujo del Snake
+
+* Cambio 1 — Se implementa la forma TRIANGULAR para los segmentos del cuerpo.
+  Usa create_polygon() con tres vertices: punta superior centrada, esquina inferior
+  izquierda y esquina inferior derecha de la celda.
+
+==============================================
+B. Logica de Niveles (BABY, EASY, MEDIUM, HARD, NYAN_CAT)
+==============================================
+
+# runtime.py — Bloque SNAKE en __init__()
+
+* Cambio 1 — Se elimina la velocidad fija (0.15) y se reemplaza por un mapa de velocidades
+  indexado por nivel. Cada nivel tiene su propia velocidad de ON_TICK:
+
+- ANTES
+            self.velocidad_gravedad = 0.15
+
+- DESPUES
+            velocidades_nivel = {
+                'BABY':     0.20,   # muy lenta
+                'EASY':     0.15,   # velocidad original (retrocompat)
+                'MEDIUM':   0.10,   # moderada
+                'HARD':     0.06,   # rapida
+                'NYAN_CAT': 0.08,   # similar a HARD con efectos visuales
+            }
+            self.velocidad_gravedad = velocidades_nivel.get(self.level, 0.15)
+
+  RETROCOMPATIBILIDAD: si el JSON no tiene campo 'level', get() devuelve 'BABY'
+  (ya inicializado con ese default) y velocidades_nivel.get() devuelve 0.15, que es
+  exactamente la velocidad que tenia el snake original.
+
+* Cambio 2 — Se muestra el nivel activo en el titulo de la ventana:
+
+- ANTES
+        self.root.title("BrickScript - " + self.tipo_juego)
+
+- DESPUES (solo para SNAKE)
+            self.root.title('BrickScript - SNAKE  |  Nivel: ' + self.level)
+
+* Cambio 3 — Color de los segmentos indexado por nivel:
+
+- ANTES
+                color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
+
+- DESPUES
+                if self.level == 'NYAN_CAT':
+                    color = self.nyan_colors[i % len(self.nyan_colors)]
+                elif self.level == 'HARD':
+                    intensidad = max(80, 255 - i * 8)
+                    color = '#{:02X}{:02X}{:02X}'.format(intensidad, 0, 0)
+                elif self.level == 'MEDIUM':
+                    intensidad = max(60, 220 - i * 6)
+                    color = '#{:02X}{:02X}{:02X}'.format(intensidad, intensidad // 2, 0)
+                elif self.level == 'EASY':
+                    intensidad = max(80, 200 - i * 5)
+                    color = '#{:02X}{:02X}{:02X}'.format(0, intensidad, 0)
+                else:  # BABY
+                    color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
+
+# games/snake.json
+
+* Cambio 1 — Se agrega el shape PIXEL_TRI con SHAPE_TYPE TRIANGULAR al JSON compilado:
+  "shape_types": { "PIXEL": "CIRCULAR", "PIXEL_TRI": "TRIANGULAR" }
+
+
+1. LENGUAJE Y GRAMÁTICA (snake.bnf)
+--------------------------------------------------------------------------------
+- Soporte para nuevas mecánicas de juego:
+  * Eventos: ON EAT_POISON, ON EAT_SHIELD, ON COLLISION_CLOUD.
+  * Acciones: DECREASE_SCORE, RESET_SCORE, GRANT_SHIELD.
+- Soporte para Atributos:
+  * Inclusión de DURATION en el bloque DEFINE POWERUP.
+  * Inclusión de LEVEL en la cabecera del programa.
+
+2. COMPILADOR (compiler.py)
+--------------------------------------------------------------------------------
+- Actualización del Parser: Ahora procesa bloques de POWERUP con atributos
+  opcionales (DURATION, COLOR, CHANCE) y estados.
+- Traducción de Niveles: Implementación del reconocimiento del campo LEVEL para
+  establecer el límite de progresión en el JSON resultante.
+- Compatibilidad: Mantenimiento estricto de la sintaxis de Python 2.7.
+
+3. MOTOR DE JUEGO (runtime.py) - REVISIÓN FINAL
+--------------------------------------------------------------------------------
+- Nuevas Entidades y Renderizado:
+  * Fruta Venenosa (POISON): Cuadro magenta con una "X" negra.
+  * Nube Obstáculo (CLOUD): Óvalo gris con símbolo "~".
+  * Ítem Escudo (SHIELD): Diamante cian con contorno verde.
+- Lógica de Escudo (Temporizado):
+  * Al activarse, genera un halo verde pulsante (usando math.sin).
+  * Otorga inmunidad total contra colisiones letales (Veneno y Nubes).
+  * Duración configurable mediante DURATION (especificado en ticks).
+- Sistema de Progresión de Niveles:
+  * Escala de Niveles: BABY -> EASY -> MEDIUM -> HARD -> NYAN_CAT.
+  * Velocidades Finales: 0.15s, 0.10s, 0.08s, 0.06s, 0.04s.
+  * Umbrales de Puntos: 0, 20, 30, 40, 50 puntos acumulados.
+- Optimizaciones de Código:
+  * Corrección del Game Loop: Reinicio del timer_gravedad para aplicar cambios
+    de velocidad en tiempo real.
+  * Scoreboard: Nuevo método actualizar_marcador() para refrescar la GUI.
+  * Módulos: Incorporación de "import math" para efectos visuales.
+
+4. ENTORNO Y DESPLIEGUE
+--------------------------------------------------------------------------------
+- Intérprete Local: Uso de Python 2.7 ubicado en .\python27 para asegurar que
+  el juego corra sin dependencias externas del sistema.
+- Ejecución Unificada: Actualización de jugar.bat para automatizar la
+  compilación y ejecución con un solo comando.
+- Juego de Referencia: games/snake_evolved.brick (Actualizado a LEVEL NYAN_CAT).
+
+--------------------------------------------------------------------------------
+
+=======================================================================
+  RESUMEN DE CAMBIOS SARA - ACTIVIDAD 4, PUNTO C, ITEMS 2 Y 3
+=======================================================================
+
+Se ha modificado cinco archivos. A continuación se listan únicamente los cambios de lógica:
+
+# snake_evolved.brick
+
+* Cambio 1 — DEFINE LEVELS: se reemplazan los niveles EASY/MEDIUM/HARD por ENTUSIASTA, y se agrega HAS_POWERUP a todos los niveles.
+
+- ANTES
+DEFINE LEVELS:
+    LEVEL BABY:
+        SPEED: 15
+        HAS_POISON: FALSE
+        HAS_OBSTACLES: FALSE
+        MIN_SCORE: 0
+    END
+    LEVEL EASY:
+        SPEED: 10
+        HAS_POISON: FALSE
+        HAS_OBSTACLES: FALSE
+        MIN_SCORE: 20
+    END
+    LEVEL MEDIUM:
+        SPEED: 7
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: FALSE
+        MIN_SCORE: 30
+    END
+    LEVEL HARD:
+        SPEED: 5
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: TRUE
+        MIN_SCORE: 40
+    END
+    LEVEL NYAN_CAT:
+        SPEED: 4
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: TRUE
+        MIN_SCORE: 50
+    END
+END
+
+- DESPUÉS
+DEFINE LEVELS:
+    LEVEL BABY:
+        SPEED: 15
+        HAS_POISON: FALSE
+        HAS_OBSTACLES: FALSE
+        HAS_POWERUP: FALSE
+        MIN_SCORE: 0
+    END
+    LEVEL ENTUSIASTA:
+        SPEED: 8
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: FALSE
+        HAS_POWERUP: TRUE
+        MIN_SCORE: 30
+    END
+    LEVEL NYAN_CAT:
+        SPEED: 3
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: TRUE
+        HAS_POWERUP: TRUE
+        MIN_SCORE: 80
+    END
+END
+
+* Cambio 2 — SHIELD_PU: se reemplaza DURATION (ticks) por DURATION_SECONDS (segundos legibles).
+
+- ANTES
+DEFINE POWERUP SHIELD_PU:
+    COLOR: #00FFAA
+    DURATION: 150
+END
+
+-DESPUÉS
+DEFINE POWERUP SHIELD_PU:
+    COLOR: #00FFAA
+    DURATION_SECONDS: 8
+END
+
+# snake.bnf
+
+* Cambio 1 — <nombre_nivel>: se agrega "ENTUSIASTA" como token válido
+
+- ANTES
+<nombre_nivel> ::= "BABY" | "EASY" | "MEDIUM" | "HARD" | "NYAN_CAT"
+
+- DESPUÉS
+<nombre_nivel> ::= "BABY" | "ENTUSIASTA" | "NYAN_CAT" | "EASY" | "MEDIUM" | "HARD"
+
+* Cambio 2 — <atrib_pu>: se agrega la alternativa DURATION_SECONDS
+
+- ANTES
+<atrib_pu> ::= "COLOR"    ":" <color_hex>
+             | "DURATION" ":" <numero>
+
+- DESPUÉS
+<atrib_pu> ::= "COLOR"            ":" <color_hex>
+             | "DURATION"         ":" <numero>
+             | "DURATION_SECONDS" ":" <numero>
+
+* Cambio 3 — <atrib_nivel>: se agrega HAS_POWERUP (no existía)
+
+- ANTES
+<atrib_nivel> ::= "SPEED"         ":" <numero>
+                | "HAS_POISON"    ":" <booleano>
+                | "HAS_OBSTACLES" ":" <booleano>
+                | "MIN_SCORE"     ":" <numero>
+      
+- DESPUÉS
+<atrib_nivel> ::= "SPEED"         ":" <numero>
+                | "HAS_POISON"    ":" <booleano>
+                | "HAS_OBSTACLES" ":" <booleano>
+                | "HAS_POWERUP"   ":" <booleano>
+                | "MIN_SCORE"     ":" <numero>
+
+# compiler.py
+
+* Cambio 1 — parsear_powerup(): se agrega el bloque para el token DURATION_SECONDS
+
+- ANTES
+elif token == 'DURATION':
+    self.consumir('DURATION')
+    self.consumir(':')
+    duracion = int(self.consumir())
+elif token == 'COLOR':
+
+-DESPUÉS
+elif token == 'DURATION':
+    self.consumir('DURATION')
+    self.consumir(':')
+    duracion = int(self.consumir())
+elif token == 'DURATION_SECONDS':
+    self.consumir('DURATION_SECONDS')
+    self.consumir(':')
+    segundos = int(self.consumir())
+    duracion = segundos * 20   # 1 seg = 20 iteraciones a 50 ms/iter
+elif token == 'COLOR':
+
+* Cambio 2 — parsear_levels(): se agrega has_powerup al dict cfg y su bloque de parseo
+
+- ANTES
+cfg = {
+    'speed':         15,
+    'has_poison':    False,
+    'has_obstacles': False,
+    'min_score':     0,
+}
+
+- DESPUÉS
+cfg = {
+    'speed':         15,
+    'has_poison':    False,
+    'has_obstacles': False,
+    'has_powerup':   False,   # NUEVO
+    'min_score':     0,
+}
+
+- ANTES
+elif atrib == 'HAS_OBSTACLES':
+    self.consumir('HAS_OBSTACLES')
+    self.consumir(':')
+    cfg['has_obstacles'] = (self.consumir() == 'TRUE')
+elif atrib == 'MIN_SCORE':
+
+- DESPUÉS
+elif atrib == 'HAS_OBSTACLES':
+    self.consumir('HAS_OBSTACLES')
+    self.consumir(':')
+    cfg['has_obstacles'] = (self.consumir() == 'TRUE')
+elif atrib == 'HAS_POWERUP':
+    self.consumir('HAS_POWERUP')
+    self.consumir(':')
+    cfg['has_powerup'] = (self.consumir() == 'TRUE')
+elif atrib == 'MIN_SCORE':
+
+# runtime.py
+
+* Cambio 1 — __init__(), bloque SNAKE: se agrega ENTUSIASTA a colores_nivel
+
+- ANTES
+self.colores_nivel = {
+    'BABY':     '#00FF88',
+    'EASY':     '#88FF00',
+    'MEDIUM':   '#FFCC00',
+    'HARD':     '#FF4400',
+    'NYAN_CAT': '#FF00FF',
+}
+
+- DESPUÉS
+self.colores_nivel = {
+    'BABY':       '#00FF88',
+    'EASY':       '#88FF00',
+    'ENTUSIASTA': '#FF9900',   # NUEVO
+    'MEDIUM':     '#FFCC00',
+    'HARD':       '#FF4400',
+    'NYAN_CAT':   '#FF00FF',
+}
+
+* Cambio 2 — __init__(), bloque SNAKE: se actualiza secuencia_niveles, umbrales_nivel y velocidades_nivel para incluir ENTUSIASTA y corregir valores de NYAN_CAT
+
+- ANTES
+self.secuencia_niveles = ['BABY', 'EASY', 'MEDIUM', 'HARD', 'NYAN_CAT']
+self.umbrales_nivel = {
+    'BABY':     0,
+    'EASY':     20,
+    'MEDIUM':   30,
+    'HARD':     40,
+    'NYAN_CAT': 50,
+}
+self.velocidades_nivel = {
+    'BABY':     0.15,
+    'EASY':     0.10,
+    'MEDIUM':   0.08,
+    'HARD':     0.06,
+    'NYAN_CAT': 0.04,
+}
+
+- DESPUÉS
+self.secuencia_niveles = ['BABY', 'EASY', 'ENTUSIASTA', 'MEDIUM', 'HARD', 'NYAN_CAT']
+self.umbrales_nivel = {
+    'BABY':       0,
+    'EASY':       20,
+    'ENTUSIASTA': 30,    # NUEVO
+    'MEDIUM':     50,
+    'HARD':       80,
+    'NYAN_CAT':   120,   # corregido (antes 50)
+}
+self.velocidades_nivel = {
+    'BABY':       0.15,
+    'EASY':       0.10,
+    'ENTUSIASTA': 0.08,   # NUEVO
+    'MEDIUM':     0.08,
+    'HARD':       0.06,
+    'NYAN_CAT':   0.03,   # corregido (antes 0.04)
+}
+
+* Cambio 3 — __init__(), bloque SNAKE: secuencia_niveles pasa a construirse dinámicamente desde levels_config tras cargarlo
+
+- ANTES
+if self.levels_config:
+    for nombre_nv, cfg in self.levels_config.items():
+        self.umbrales_nivel[nombre_nv]    = cfg.get('min_score', self.umbrales_nivel.get(nombre_nv, 0))
+        self.velocidades_nivel[nombre_nv] = cfg.get('speed', 15) / 100.0
+
+- DESPUÉS
+if self.levels_config:
+    for nombre_nv, cfg in self.levels_config.items():
+        self.umbrales_nivel[nombre_nv]    = cfg.get('min_score', self.umbrales_nivel.get(nombre_nv, 0))
+        self.velocidades_nivel[nombre_nv] = cfg.get('speed', 15) / 100.0
+    self.secuencia_niveles = sorted(        # NUEVO
+        self.levels_config.keys(),
+        key=lambda n: self.levels_config[n].get('min_score', 0)
+    )
+
+* Cambio 4 — __init__(), bloque SNAKE: se declara nyan_hit_flash_timer
+
+- ANTES
+self.shield_flash_timer  = 0
+self.nivel_flash_timer   = 0
+self.nivel_anterior      = 'BABY'
+
+- DESPUÉS
+self.shield_flash_timer   = 0
+self.nivel_flash_timer    = 0
+self.nivel_anterior       = 'BABY'
+self.nyan_hit_flash_timer = 0   # NUEVO
+
+* Cambio 5 — snake_mover_jugador(): colisión con pared en nivel NYAN_CAT pasa a tener lógica propia
+
+- ANTES
+if not (0 <= nueva_cabeza[0] < self.ancho and 0 <= nueva_cabeza[1] < self.alto):
+    if self.escudo_activo:
+        nueva_cabeza = (nueva_cabeza[0] % self.ancho,
+                        nueva_cabeza[1] % self.alto)
+    else:
+        self.ejecutar_evento('ON_COLLISION_WALL')
+        return
+
+- DESPUÉS
+if not (0 <= nueva_cabeza[0] < self.ancho and 0 <= nueva_cabeza[1] < self.alto):
+    if self.escudo_activo:
+        nueva_cabeza = (nueva_cabeza[0] % self.ancho,
+                        nueva_cabeza[1] % self.alto)
+    elif self.level == 'NYAN_CAT':
+        if self.puntuacion <= 0:
+            self.juego_terminado = True
+            return
+        else:
+            self.puntuacion = 0
+            self.actualizar_marcador()
+            self.nyan_hit_flash_timer = 40
+            nueva_cabeza = (nueva_cabeza[0] % self.ancho,
+                            nueva_cabeza[1] % self.alto)
+    else:
+        self.ejecutar_evento('ON_COLLISION_WALL')
+        return
+
+* Cambio 6 — snake_mover_jugador(): colisión con el cuerpo propio en nivel NYAN_CAT pasa a tener lógica propia
+
+- ANTES
+if nueva_cabeza in self.serpiente_cuerpo[:-1]:
+    if not self.escudo_activo:
+        self.ejecutar_evento('ON_COLLISION_SELF')
+        return
+    # Con escudo: se ignora la colisión
+
+- DESPUÉS
+if nueva_cabeza in self.serpiente_cuerpo[:-1]:
+    if not self.escudo_activo:
+        if self.level == 'NYAN_CAT':
+            if self.puntuacion <= 0:
+                self.juego_terminado = True
+                return
+            else:
+                self.puntuacion = 0
+                self.actualizar_marcador()
+                self.nyan_hit_flash_timer = 40
+        else:
+            self.ejecutar_evento('ON_COLLISION_SELF')
+            return
+    # Con escudo: se ignora la colisión
+
+* Cambio 7 — ejecutar_evento(): SPAWN SHIELD pasa a ser condicional según has_powerup del nivel activo
+
+- ANTES
+elif objeto == 'SHIELD': self.snake_spawn_escudo()
+
+- DESPUÉS
+elif objeto == 'SHIELD':
+    cfg_nivel_actual = self.levels_config.get(self.level, {})
+    if cfg_nivel_actual.get('has_powerup', True):
+        self.snake_spawn_escudo()
+
+* Cambio 8 — snake_crecer(): se separa la gestión de nubes (has_obstacles) de la del escudo (has_powerup)
+
+- ANTES
+if cfg.get('has_obstacles', True):
+    self.posiciones_nubes = [(5, 5), (15, 15), (5, 15), (15, 5)]
+    if self.posicion_escudo is None:
+        self.snake_spawn_escudo()
+else:
+    self.posiciones_nubes = []
+    self.posicion_escudo = None
+
+- DESPUÉS
+if cfg.get('has_obstacles', True):
+    self.posiciones_nubes = [(5, 5), (15, 15), (5, 15), (15, 5)]
+else:
+    self.posiciones_nubes = []
+
+if cfg.get('has_powerup', True):
+    if self.posicion_escudo is None:
+        self.snake_spawn_escudo()
+else:
+    self.posicion_escudo = None
+
+* Cambio 9 — dibujar(), color de serpiente: se agrega el caso ENTUSIASTA
+
+- ANTES
+elif self.level == 'EASY':
+    intensidad = max(80, 200 - i * 5)
+    color = '#{:02X}{:02X}{:02X}'.format(0, intensidad, 0)
+else:
+    color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
+
+- DESPUÉS
+elif self.level == 'EASY':
+    intensidad = max(80, 200 - i * 5)
+    color = '#{:02X}{:02X}{:02X}'.format(0, intensidad, 0)
+elif self.level == 'ENTUSIASTA':
+    r = max(150, 255 - i * 5)
+    g = max(60,  160 - i * 8)
+    color = '#{:02X}{:02X}{:02X}'.format(r, g, 0)   # NUEVO: naranja dorado degradado
+else:
+    color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
+
+* Cambio 10 — dibujar(): se agrega el overlay visual de colisión sin muerte para NYAN_CAT
+
+- ANTES
+# Flash verde al recoger el escudo
+if hasattr(self, 'shield_flash_timer') and self.shield_flash_timer > 0:
+
+- DESPUÉS
+if hasattr(self, 'nyan_hit_flash_timer') and self.nyan_hit_flash_timer > 0:   # NUEVO
+    self.nyan_hit_flash_timer -= 1
+    if self.nyan_hit_flash_timer > 5:
+        self.canvas.create_rectangle(
+            0, self.alto_canvas // 2 - 32,
+            self.ancho_canvas, self.alto_canvas // 2 + 32,
+            fill='#1A0000', outline=''
+        )
+        self.canvas.create_text(
+            self.ancho_canvas // 2, self.alto_canvas // 2 - 14,
+            text=u'\u26A0 NYAN CAT \u26A0',
+            fill='#FF00FF', font=('Consolas', 13, 'bold')
+        )
+        self.canvas.create_text(
+            self.ancho_canvas // 2, self.alto_canvas // 2 + 10,
+            text=u'PUNTOS PERDIDOS',
+            fill='#FF4444', font=('Consolas', 10, 'bold')
+        )
+
+# Flash verde al recoger el escudo
+if hasattr(self, 'shield_flash_timer') and self.shield_flash_timer > 0:
+
+================================================================================
+

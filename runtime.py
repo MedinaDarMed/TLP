@@ -133,11 +133,12 @@ class Juego:
             NEON_GRN  = '#00FFAA'   # valor de líneas / snake
 
             self.colores_nivel = {
-                'BABY':     '#00FF88',   # verde menta — tranquilo
-                'EASY':     '#88FF00',   # verde lima
-                'MEDIUM':   '#FFCC00',   # amarillo — atención
-                'HARD':     '#FF4400',   # naranja rojo — peligro
-                'NYAN_CAT': '#FF00FF',   # magenta — modo especial
+                'BABY':       '#00FF88',   # verde menta — tranquilo
+                'EASY':       '#88FF00',   # verde lima
+                'ENTUSIASTA': '#FF9900',   # naranja vibrante — nivel intermedio energico
+                'MEDIUM':     '#FFCC00',   # amarillo — atencion
+                'HARD':       '#FF4400',   # naranja rojo — peligro
+                'NYAN_CAT':   '#FF00FF',   # magenta — modo especial
             }
 
             self.marco_score = tk.Frame(self.root, width=150, bg=PANEL_BG)
@@ -344,26 +345,34 @@ class Juego:
 
             self.snake_shape = self.datos_juego.get('shape_types', {}).get('PIXEL', 'RECTANGULAR')
             # ACTIVIDAD 4 - Logica de niveles progresivos:
-            # El .brick define el nivel MAXIMO alcanzable (ej. NYAN_CAT).
+            # El .brick define el nivel MAXIMO alcanzable.
             # El juego siempre comienza en BABY y sube segun puntuacion acumulada.
             # RETROCOMPAT: si el JSON no tiene campo 'level', el nivel maximo es BABY
             # y el juego se queda en ese nivel sin progresar (comportamiento original).
             self.nivel_maximo  = self.datos_juego.get('level', 'BABY')
-            self.secuencia_niveles = ['BABY', 'EASY', 'MEDIUM', 'HARD', 'NYAN_CAT']
-            # Umbrales de puntuacion para subir de nivel (puntos acumulados)
+            # secuencia_niveles se reconstruye dinamicamente desde levels_config
+            # (ordenando por MIN_SCORE). Este fallback cubre archivos sin DEFINE LEVELS.
+            # Se incluye ENTUSIASTA para que la progresion funcione sin config.
+            self.secuencia_niveles = ['BABY', 'EASY', 'ENTUSIASTA', 'MEDIUM', 'HARD', 'NYAN_CAT']
+            # Umbrales de puntuacion para subir de nivel (puntos acumulados).
+            # Fallback si el .brick no tiene DEFINE LEVELS (retrocompat).
             self.umbrales_nivel = {
-                'BABY':     0,    # nivel inicial
-                'EASY':     20,   # sube al comer 2 frutas
-                'MEDIUM':   30,  # sube al comer 3 frutas
-                'HARD':     40,  # sube al comer 4 frutas
-                'NYAN_CAT': 50,  # nivel maximo al comer 5 frutas
+                'BABY':       0,
+                'EASY':       20,
+                'ENTUSIASTA': 30,
+                'MEDIUM':     50,
+                'HARD':       80,
+                'NYAN_CAT':   120,
             }
+            # Velocidades de tick por nivel (segundos por iteracion).
+            # NYAN_CAT baja a 0.03 para velocidad significativamente mas alta.
             self.velocidades_nivel = {
-                'BABY':     0.15,
-                'EASY':     0.10,
-                'MEDIUM':   0.08,
-                'HARD':     0.06,
-                'NYAN_CAT': 0.04,
+                'BABY':       0.15,
+                'EASY':       0.10,
+                'ENTUSIASTA': 0.08, 
+                'MEDIUM':     0.08,
+                'HARD':       0.06,
+                'NYAN_CAT':   0.03,
             }
             # Nivel actual siempre empieza en BABY
             self.level = 'BABY'
@@ -389,17 +398,25 @@ class Juego:
                 for nombre_nv, cfg in self.levels_config.items():
                     self.umbrales_nivel[nombre_nv]   = cfg.get('min_score', self.umbrales_nivel.get(nombre_nv, 0))
                     self.velocidades_nivel[nombre_nv] = cfg.get('speed', 15) / 100.0
+                # Construir secuencia_niveles dinamicamente ordenando por MIN_SCORE.
+                self.secuencia_niveles = sorted(
+                    self.levels_config.keys(),
+                    key=lambda n: self.levels_config[n].get('min_score', 0)
+                )
 
             # --- Power-Up "No Morir": wrap-around al chocar con pared con escudo ---
-            # (no requiere nueva variable; usa self.escudo_activo existente)
 
             # --- Animaciones visuales: contadores de frame ---
             self.food_pulse_frame    = 0   # Para pulso de la comida
             self.poison_flash_frame  = 0   # Para parpadeo del veneno
-            self.shield_spin_frame   = 0   # Para rotación del ítem escudo
+            self.shield_spin_frame   = 0   # Para rotacion del escudo
             self.shield_flash_timer  = 0   # Flash verde al recoger escudo
             self.nivel_flash_timer   = 0   # Frames restantes del flash de subida de nivel
-            self.nivel_anterior      = 'BABY'  # Para detectar cuándo cambia el nivel
+            self.nivel_anterior      = 'BABY'  # Para detectar cuando cambia el nivel
+            # Timer para el mensaje de colision sin muerte en NYAN_CAT.
+            # Se activa cuando la serpiente choca (pared/cuerpo) y pierde
+            # todos los puntos pero sigue viva.
+            self.nyan_hit_flash_timer = 0
 
         self.timer_gravedad = 0
         self.ejecutar_evento('ON_START')
@@ -719,6 +736,11 @@ class Juego:
                     # Nivel EASY: verde clasico con degradado suave
                     intensidad = max(80, 200 - i * 5)
                     color = '#{:02X}{:02X}{:02X}'.format(0, intensidad, 0)
+                elif self.level == 'ENTUSIASTA':
+                    # Nivel Entusiasta: Naranja dorado con degradado — nivel intermedio energico
+                    r = max(150, 255 - i * 5)
+                    g = max(60,  160 - i * 8)
+                    color = '#{:02X}{:02X}{:02X}'.format(r, g, 0)
                 else:
                     # BABY (default): verde clasico sin degradado
                     color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
@@ -861,6 +883,29 @@ class Juego:
                     font=('Consolas', 10)
                 )
 
+        # Mensaje de colision sin muerte: muestra un aviso cuando la serpiente
+        # pierde todos sus puntos pero sigue viva en nivel NYAN_CAT.
+        if hasattr(self, 'nyan_hit_flash_timer') and self.nyan_hit_flash_timer > 0:
+            self.nyan_hit_flash_timer -= 1
+            if self.nyan_hit_flash_timer > 5:
+                # Fondo rojo semitransparente (simula un flash de dano)
+                self.canvas.create_rectangle(
+                    0, self.alto_canvas // 2 - 32,
+                    self.ancho_canvas, self.alto_canvas // 2 + 32,
+                    fill='#1A0000', outline=''
+                )
+                # Icono y texto de aviso
+                self.canvas.create_text(
+                    self.ancho_canvas // 2, self.alto_canvas // 2 - 14,
+                    text=u'⚠ NYAN CAT ⚠',
+                    fill='#FF00FF', font=('Consolas', 13, 'bold')
+                )
+                self.canvas.create_text(
+                    self.ancho_canvas // 2, self.alto_canvas // 2 + 10,
+                    text=u'PUNTOS PERDIDOS',
+                    fill='#FF4444', font=('Consolas', 10, 'bold')
+                )
+
         # Flash verde al recoger el escudo
         if hasattr(self, 'shield_flash_timer') and self.shield_flash_timer > 0:
             self.shield_flash_timer -= 1
@@ -994,14 +1039,22 @@ class Juego:
                             cfg_nivel = self.levels_config.get(self.level, {})
                             if cfg_nivel.get('has_poison', True):  # True = fallback sin config
                                 self.snake_spawn_veneno()
-                            # Si has_poison es False (ej. BABY), simplemente no se crea la fruta
+                            # Si has_poison es False, simplemente no se crea la fruta
                         elif objeto == 'CLOUD':
                             # Punto C: solo spawnear nubes si el nivel actual lo permite
                             cfg_nivel = self.levels_config.get(self.level, {})
                             if cfg_nivel.get('has_obstacles', True):
                                 coords = params[0] if params else [0, 0]
                                 self.posiciones_nubes.append((coords[0], coords[1]))
-                        elif objeto == 'SHIELD': self.snake_spawn_escudo()
+                        elif objeto == 'SHIELD':
+                            # El escudo solo aparece si el nivel actual
+                            # tiene HAS_POWERUP: TRUE en su configuracion.
+                            # BABY -> False (sin escudo).
+                            # ENTUSIASTA y NYAN_CAT -> True (escudo habilitado).
+                            # Fallback True para archivos sin levels_config (retrocompat).
+                            cfg_nivel_actual = self.levels_config.get(self.level, {})
+                            if cfg_nivel_actual.get('has_powerup', True):
+                                self.snake_spawn_escudo()
                     
                     if verbo == 'MOVE'  and objeto == 'PLAYER': self.snake_mover_jugador()
                     if verbo == 'GROW': self.snake_crecer()
@@ -1284,9 +1337,23 @@ class Juego:
         # Colision con paredes
         if not (0 <= nueva_cabeza[0] < self.ancho and 0 <= nueva_cabeza[1] < self.alto):
             if self.escudo_activo:
-                # "No Morir": wrap-around en lugar de muerte
+                # Power-Up activo: wrap-around en lugar de muerte
                 nueva_cabeza = (nueva_cabeza[0] % self.ancho,
                                 nueva_cabeza[1] % self.alto)
+            elif self.level == 'NYAN_CAT':
+                # Colision con pared en NYAN_CAT -> logica especial:
+                #   - Si tiene puntos: pierde TODOS los puntos, sigue vivo.
+                #   - Si ya no tiene puntos: GAME OVER definitivo.
+                # La serpiente hace wrap-around para continuar el movimiento.
+                if self.puntuacion <= 0:
+                    self.juego_terminado = True
+                    return
+                else:
+                    self.puntuacion = 0
+                    self.actualizar_marcador()
+                    self.nyan_hit_flash_timer = 40   # activar mensaje visual
+                    nueva_cabeza = (nueva_cabeza[0] % self.ancho,
+                                    nueva_cabeza[1] % self.alto)
             else:
                 self.ejecutar_evento('ON_COLLISION_WALL')
                 return
@@ -1294,9 +1361,23 @@ class Juego:
         # Colision consigo misma
         if nueva_cabeza in self.serpiente_cuerpo[:-1]:
             if not self.escudo_activo:
-                self.ejecutar_evento('ON_COLLISION_SELF')
-                return
-            # Con escudo: se ignora la colisión (la serpiente sigue)
+                if self.level == 'NYAN_CAT':
+                    # Colision con cuerpo propio en NYAN_CAT -> logica especial:
+                    #   - Si tiene puntos: pierde TODOS los puntos, sigue vivo.
+                    #   - Si ya no tiene puntos: GAME OVER definitivo.
+                    # La serpiente continua moviendose (atraviesa su cuerpo).
+                    if self.puntuacion <= 0:
+                        self.juego_terminado = True
+                        return
+                    else:
+                        self.puntuacion = 0
+                        self.actualizar_marcador()
+                        self.nyan_hit_flash_timer = 40   # activar mensaje visual
+                    # No retornamos: la serpiente sigue viva
+                else:
+                    self.ejecutar_evento('ON_COLLISION_SELF')
+                    return
+            # Con escudo: se ignora la colision (la serpiente sigue)
 
         self.serpiente_cuerpo.insert(0, nueva_cabeza)
 
@@ -1310,6 +1391,9 @@ class Juego:
         if self.posicion_veneno and nueva_cabeza == self.posicion_veneno:
             self.posicion_veneno = None  # consumir la fruta venenosa
             if not self.escudo_activo:
+                # En niveles ENTUSIASTA y superiores el veneno solo resta puntos
+                # (ON_EAT_POISON ya hace DECREASE_SCORE 5).
+                # En MEDIUM/HARD/NYAN_CAT el veneno es letal ademas de restar.
                 niveles_letales = ('MEDIUM', 'HARD', 'NYAN_CAT')
                 if self.level in niveles_letales:
                     self.juego_terminado = True
@@ -1324,9 +1408,9 @@ class Juego:
                 else:
                     self.ejecutar_evento('ON_COLLISION_CLOUD')
 
-        # --- SNAKE EVOLVED: Colision con item de escudo ---
+        # --- SNAKE EVOLVED: Colision con escudo ---
         if self.posicion_escudo and nueva_cabeza == self.posicion_escudo:
-            self.posicion_escudo = None  # consumir el item de escudo
+            self.posicion_escudo = None  # consumir el escudo
             self.ejecutar_evento('ON_EAT_SHIELD')
 
     def snake_spawn_veneno(self):
@@ -1389,16 +1473,25 @@ class Juego:
             if self.levels_config:
                 cfg = self.levels_config.get(self.level, {})
 
-                if cfg.get('has_obstacles', True):
-                    # Reponer nubes en niveles altos
-                    self.posiciones_nubes = [(5, 5), (15, 15), (5, 15), (15, 5)]
+                # Separamos la gestion de nubes (has_obstacles) de la del escudo
+                # (has_powerup). Antes estaban acopladas: al entrar en ENTUSIASTA
+                # (sin nubes pero CON escudo) se eliminaba el escudo tambien.
 
-                    # Reponer el escudo si no existe
+                # Gestionar nubes segun HAS_OBSTACLES
+                if cfg.get('has_obstacles', True):
+                    # Nivel con obstaculos: reponer nubes
+                    self.posiciones_nubes = [(5, 5), (15, 15), (5, 15), (15, 5)]
+                else:
+                    # Nivel sin obstaculos: eliminar nubes
+                    self.posiciones_nubes = []
+
+                # Gestionar escudo segun HAS_POWERUP (independiente de nubes)
+                if cfg.get('has_powerup', True):
+                    # Nivel con power-up habilitado: spawnear escudo si no existe
                     if self.posicion_escudo is None:
                         self.snake_spawn_escudo()
                 else:
-                    # En niveles sin obstáculos, limpiar todo
-                    self.posiciones_nubes = []
+                    # Nivel sin power-up: eliminar escudo si existe
                     self.posicion_escudo = None
 
     def actualizar_marcador(self):

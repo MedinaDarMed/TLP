@@ -3,32 +3,23 @@
     "BABY": {
       "has_poison": false, 
       "has_obstacles": false, 
+      "min_score": 0, 
       "speed": 15, 
-      "min_score": 0
+      "has_powerup": false
     }, 
     "NYAN_CAT": {
       "has_poison": true, 
       "has_obstacles": true, 
-      "speed": 4, 
-      "min_score": 120
+      "min_score": 80, 
+      "speed": 3, 
+      "has_powerup": true
     }, 
-    "MEDIUM": {
+    "ENTUSIASTA": {
       "has_poison": true, 
       "has_obstacles": false, 
+      "min_score": 30, 
       "speed": 8, 
-      "min_score": 50
-    }, 
-    "HARD": {
-      "has_poison": true, 
-      "has_obstacles": true, 
-      "speed": 6, 
-      "min_score": 80
-    }, 
-    "EASY": {
-      "has_poison": true, 
-      "has_obstacles": false, 
-      "speed": 10, 
-      "min_score": 20
+      "has_powerup": true
     }
   }, 
   "shape_types": {
@@ -58,7 +49,7 @@
       "color": "#00FFAA", 
       "states": [], 
       "chance": 100, 
-      "duration": 150, 
+      "duration": 160, 
       "trigger_value": null
     }
   }, 

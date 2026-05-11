@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 # Cambios (Actividad 3 - Punto B):
 # 1. LEXER - funcion lexer():
 #    - La expresion regular de comentarios ahora preserva los colores hexadecimales
@@ -212,6 +212,16 @@ class Parser:
                 self.consumir('DURATION')
                 self.consumir(':')
                 duracion      = int(self.consumir())
+            # DURATION_SECONDS: duracion del power-up expresada en segundos.
+            # Conversion: 1 segundo = 20 ticks (game-loop a 50 ms).
+            # Se almacena en 'duration' (ticks) para que el runtime
+            # lo consuma igual que si se hubiera usado DURATION.
+            elif token == 'DURATION_SECONDS':
+                self.consumir('DURATION_SECONDS')
+                self.consumir(':')
+                segundos = int(self.consumir())
+                # Convertir: cada iteracion del game-loop dura 50 ms -> 20 iter/s
+                duracion = segundos * 20
             elif token == 'COLOR':
                 self.consumir('COLOR')
                 self.consumir(':')
@@ -276,13 +286,16 @@ class Parser:
         while self.posicion < len(self.tokens) and self.tokens[self.posicion] != 'END':
             if self.tokens[self.posicion] == 'LEVEL':
                 self.consumir('LEVEL')
-                nombre_nivel = self.consumir()   # BABY, EASY, MEDIUM, HARD, NYAN_CAT
+                nombre_nivel = self.consumir()   # BABY, ENTUSIASTA, NYAN_CAT (y EASY/MEDIUM/HARD por retrocompat)
                 self.consumir(':')
 
                 cfg = {
                     'speed':         15,    # valor por defecto (0.15 s/tick)
                     'has_poison':    False,
                     'has_obstacles': False,
+                    # has_powerup: controla si el escudo puede aparecer.
+                    # Default False -> retrocompatible con .brick sin este atributo.
+                    'has_powerup':   False,
                     'min_score':     0,
                 }
 
@@ -300,6 +313,12 @@ class Parser:
                         self.consumir('HAS_OBSTACLES')
                         self.consumir(':')
                         cfg['has_obstacles'] = (self.consumir() == 'TRUE')
+                    # HAS_POWERUP determina si el escudo aparece en este nivel.
+                    # True en ENTUSIASTA y NYAN_CAT; False en BABY.
+                    elif atrib == 'HAS_POWERUP':
+                        self.consumir('HAS_POWERUP')
+                        self.consumir(':')
+                        cfg['has_powerup'] = (self.consumir() == 'TRUE')
                     elif atrib == 'MIN_SCORE':
                         self.consumir('MIN_SCORE')
                         self.consumir(':')
