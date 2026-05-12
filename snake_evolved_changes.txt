@@ -9,6 +9,10 @@ Se implemento la Actividad 4: Evolucion del Lenguaje y Logica de Niveles (Caso S
 Los cambios garantizan retrocompatibilidad: el snake.brick original sigue siendo compilable
 y ejecutable sin errores.
 
+=======================================================================
+  RESUMEN DE CAMBIOS ANDERSON - ACTIVIDAD 4, PUNTO A, ITEMS 1 Y 2
+=======================================================================
+
 ==============================================
 A. Personalizacion Geometrica de la Serpiente
 ==============================================
@@ -132,8 +136,11 @@ B. Logica de Niveles (BABY, EASY, MEDIUM, HARD, NYAN_CAT)
 * Cambio 1 — Se agrega el shape PIXEL_TRI con SHAPE_TYPE TRIANGULAR al JSON compilado:
   "shape_types": { "PIXEL": "CIRCULAR", "PIXEL_TRI": "TRIANGULAR" }
 
+=======================================================================
+  RESUMEN DE CAMBIOS DARWIN - ACTIVIDAD 4, PUNTO B, ITEMS 1 Y 2
+=======================================================================
 
-1. LENGUAJE Y GRAMÁTICA (snake.bnf)
+# snake.bnf
 --------------------------------------------------------------------------------
 - Soporte para nuevas mecánicas de juego:
   * Eventos: ON EAT_POISON, ON EAT_SHIELD, ON COLLISION_CLOUD.
@@ -142,7 +149,7 @@ B. Logica de Niveles (BABY, EASY, MEDIUM, HARD, NYAN_CAT)
   * Inclusión de DURATION en el bloque DEFINE POWERUP.
   * Inclusión de LEVEL en la cabecera del programa.
 
-2. COMPILADOR (compiler.py)
+# compiler.py
 --------------------------------------------------------------------------------
 - Actualización del Parser: Ahora procesa bloques de POWERUP con atributos
   opcionales (DURATION, COLOR, CHANCE) y estados.
@@ -150,7 +157,7 @@ B. Logica de Niveles (BABY, EASY, MEDIUM, HARD, NYAN_CAT)
   establecer el límite de progresión en el JSON resultante.
 - Compatibilidad: Mantenimiento estricto de la sintaxis de Python 2.7.
 
-3. MOTOR DE JUEGO (runtime.py) - REVISIÓN FINAL
+# runtime.py
 --------------------------------------------------------------------------------
 - Nuevas Entidades y Renderizado:
   * Fruta Venenosa (POISON): Cuadro magenta con una "X" negra.
