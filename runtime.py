@@ -336,9 +336,12 @@ class Juego:
             self.posicion_comida     = None
 
             # --- SNAKE EVOLVED: Estado de nuevas entidades ---
-            self.posicion_veneno     = None
+            self.posiciones_veneno   = []    # lista de [x, y, ticks_vida]
+            self.poison_max          = 3     # máximo de venenos simultáneos
+            self.poison_vida_ticks   = 80    # ticks que vive cada veneno antes de moverse
             self.posiciones_nubes    = []
             self.escudo_activo       = False
+            self.escudo_fue_activado_alguna_vez = False
             self.escudo_restante     = 0     # Ticks restantes de invulnerabilidad
             self.posicion_escudo     = None
             self.escudo_halo_frame   = 0     # Para la animacion del halo
@@ -431,20 +434,39 @@ class Juego:
             self.mostrar_game_over()
             return
 
+        # --- SNAKE EVOLVED: Gestion del escudo en tiempo real ---
+        # Se descuenta FUERA del bloque de velocidad para que la barra se
+        # consuma a ritmo constante (cada 50 ms) sin importar la velocidad del nivel.
+        if self.tipo_juego == 'SNAKE' and self.escudo_activo:
+            self.escudo_restante -= 1
+            if self.escudo_restante <= 0:
+                self.escudo_activo = False
+
+        # --- SNAKE EVOLVED: Tick-down de venenos con tiempo de vida ---
+        # Cada veneno tiene un contador; al llegar a 0 se reubica automáticamente.
+        if self.tipo_juego == 'SNAKE':
+            nuevas = []
+            for entrada in self.posiciones_veneno:
+                vx, vy, vida = entrada
+                vida -= 1
+                if vida <= 0:
+                    nueva_pos = self._veneno_buscar_pos()
+                    if nueva_pos:
+                        nuevas.append([nueva_pos[0], nueva_pos[1], self.poison_vida_ticks])
+                else:
+                    nuevas.append([vx, vy, vida])
+            self.posiciones_veneno = nuevas
+
         self.timer_gravedad += 0.05
         if self.timer_gravedad >= self.velocidad_gravedad:
             self.timer_gravedad = 0
-            
-            if self.tipo_juego == 'SNAKE':
-                # --- SNAKE EVOLVED: Gestion del escudo ---
-                if self.escudo_activo:
-                    self.escudo_restante -= 1
-                    if self.escudo_restante <= 0:
-                        self.escudo_activo = False
-            
             self.ejecutar_evento('ON_TICK')
 
         self.dibujar()
+        # Refrescar la barra del escudo en cada frame para que se vea
+        # consumiendo en tiempo real, no solo al comer.
+        if self.es_remake and self.tipo_juego == 'SNAKE':
+            self.actualizar_marcador()
         self.timer_id = self.root.after(50, self.game_loop)
 
     def cerrar_ventana(self):
@@ -589,15 +611,22 @@ class Juego:
                 else:
                     self.dibujar_celda(x, y, COLOR_FOOD)
 
-            # --- SNAKE EVOLVED: Dibujar fruta venenosa (magenta + X) ---
-            if self.posicion_veneno:
-                vx, vy = self.posicion_veneno
+            # --- SNAKE EVOLVED: Dibujar frutas venenosas (magenta + X) ---
+            for entrada in self.posiciones_veneno:
+                vx, vy, vida = entrada
                 ts = self.taman_celda
                 px, py = vx * ts, vy * ts
+                # La intensidad del color baja conforme se acerca el tiempo de reubicación
+                fraccion_vida = vida / float(self.poison_vida_ticks)
 
                 if self.es_remake:
                     # Parpadeo: alterna entre dos tonos de magenta cada 15 frames
-                    cv = '#FF00FF' if (self.poison_flash_frame // 15) % 2 == 0 else '#CC00CC'
+                    brillo = int(180 + 75 * fraccion_vida)
+                    brillo = min(255, brillo)
+                    if (self.poison_flash_frame // 15) % 2 == 0:
+                        cv = '#{:02X}00{:02X}'.format(brillo, brillo // 2)
+                    else:
+                        cv = '#CC00CC'
                     # Halo exterior amenazante
                     self.canvas.create_oval(
                         px + 1, py + 1, px + ts - 1, py + ts - 1,
@@ -1020,6 +1049,7 @@ class Juego:
                             duracion_ticks = powerups[pu_nombre]['duration']
                             break
                     self.escudo_activo = True
+                    self.escudo_fue_activado_alguna_vez = True
                     self.escudo_restante = duracion_ticks
                     self.shield_flash_timer = 12
                 elif verbo == 'GAME_OVER': 
@@ -1316,8 +1346,7 @@ class Juego:
     def snake_spawn_comida(self):
         # Evitar posiciones ocupadas por serpiente, veneno, nubes y escudo
         ocupadas = set(self.serpiente_cuerpo)
-        if self.posicion_veneno:
-            ocupadas.add(self.posicion_veneno)
+        ocupadas.update((v[0], v[1]) for v in self.posiciones_veneno)
         if self.posicion_escudo:
             ocupadas.add(self.posicion_escudo)
         ocupadas.update(self.posiciones_nubes)
@@ -1387,18 +1416,24 @@ class Juego:
         else:
             self.serpiente_cuerpo.pop()
 
-        # --- SNAKE EVOLVED: Colision con fruta venenosa ---
-        if self.posicion_veneno and nueva_cabeza == self.posicion_veneno:
-            self.posicion_veneno = None  # consumir la fruta venenosa
-            if not self.escudo_activo:
-                # En niveles ENTUSIASTA y superiores el veneno solo resta puntos
-                # (ON_EAT_POISON ya hace DECREASE_SCORE 5).
-                # En MEDIUM/HARD/NYAN_CAT el veneno es letal ademas de restar.
-                niveles_letales = ('MEDIUM', 'HARD', 'NYAN_CAT')
-                if self.level in niveles_letales:
-                    self.juego_terminado = True
-                else:
-                    self.ejecutar_evento('ON_EAT_POISON')
+        # --- SNAKE EVOLVED: Colision con frutas venenosas ---
+        for i, entrada in enumerate(self.posiciones_veneno):
+            vx, vy, _ = entrada
+            if nueva_cabeza == (vx, vy):
+                self.posiciones_veneno.pop(i)
+                # Respawnear uno nuevo en otro lugar
+                nueva_pos = self._veneno_buscar_pos()
+                if nueva_pos:
+                    self.posiciones_veneno.append([nueva_pos[0], nueva_pos[1], self.poison_vida_ticks])
+                if not self.escudo_activo:
+                    # En niveles ENTUSIASTA y superiores el veneno solo resta puntos.
+                    # En MEDIUM/HARD/NYAN_CAT el veneno es letal ademas de restar.
+                    niveles_letales = ('MEDIUM', 'HARD', 'NYAN_CAT')
+                    if self.level in niveles_letales:
+                        self.juego_terminado = True
+                    else:
+                        self.ejecutar_evento('ON_EAT_POISON')
+                break
 
         # --- SNAKE EVOLVED: Colision con nube obstaculo ---
         if nueva_cabeza in self.posiciones_nubes:
@@ -1413,24 +1448,36 @@ class Juego:
             self.posicion_escudo = None  # consumir el escudo
             self.ejecutar_evento('ON_EAT_SHIELD')
 
-    def snake_spawn_veneno(self):
+    def _veneno_buscar_pos(self):
+        """Retorna una posición (x, y) libre para un veneno, o None si no hay espacio."""
         ocupadas = set(self.serpiente_cuerpo)
-        if self.posicion_comida: ocupadas.add(self.posicion_comida)
-        if self.posicion_escudo: ocupadas.add(self.posicion_escudo)
+        if self.posicion_comida:  ocupadas.add(self.posicion_comida)
+        if self.posicion_escudo:  ocupadas.add(self.posicion_escudo)
         ocupadas.update(self.posiciones_nubes)
-        intentos = 0
-        while intentos < 200:
+        ocupadas.update((v[0], v[1]) for v in self.posiciones_veneno)
+        for _ in range(200):
             x = random.randint(0, self.ancho - 1)
             y = random.randint(0, self.alto  - 1)
             if (x, y) not in ocupadas:
-                self.posicion_veneno = (x, y)
-                return
-            intentos += 1
+                return (x, y)
+        return None
+
+    def snake_spawn_veneno(self):
+        """Spawnea venenos hasta llegar a poison_max, respetando has_poison del nivel."""
+        cfg_nivel = self.levels_config.get(self.level, {}) if self.levels_config else {}
+        if not cfg_nivel.get('has_poison', False):
+            return
+        while len(self.posiciones_veneno) < self.poison_max:
+            pos = self._veneno_buscar_pos()
+            if pos:
+                self.posiciones_veneno.append([pos[0], pos[1], self.poison_vida_ticks])
+            else:
+                break
 
     def snake_spawn_escudo(self):
         ocupadas = set(self.serpiente_cuerpo)
         if self.posicion_comida: ocupadas.add(self.posicion_comida)
-        if self.posicion_veneno: ocupadas.add(self.posicion_veneno)
+        ocupadas.update((v[0], v[1]) for v in self.posiciones_veneno)
         ocupadas.update(self.posiciones_nubes)
         intentos = 0
         while intentos < 200:
@@ -1503,48 +1550,50 @@ class Juego:
                 self.label_nivel_actual.config(text=self.level, fg=color_nv)
 
             # Actualizar barra de escudo
-            # Actualizar barra de escudo
             if hasattr(self, 'shield_bar_canvas') and self.shield_bar_canvas:
-                self.shield_bar_canvas.delete('all')
-                # Calcular duración máxima (siempre, no solo cuando está activo)
-                duracion_max = 150
-                powerups = self.datos_juego.get('powerups', {})
-                for pu in powerups.values():
-                    if pu.get('duration'):
-                        duracion_max = pu['duration']
-                        break
-
-                if self.escudo_activo and self.escudo_restante > 0:
-                    # Fondo con borde verde
-                    self.shield_bar_canvas.create_rectangle(
-                        0, 0, 120, 12, fill='#0A1A10', outline='#00AA66', width=1
-                    )
-                    # Segmentos de la barra (10 segmentos)
-                    num_seg = 10
-                    seg_activos = int(num_seg * (float(self.escudo_restante) / duracion_max))
-                    for s in range(num_seg):
-                        sx1 = s * 12 + 1
-                        sx2 = sx1 + 10
-                        if s < seg_activos:
-                            verde = min(255, 180 + s * 6)
-                            col_seg = '#{:02X}{:02X}{:02X}'.format(0, verde, int(verde * 0.6))
-                            self.shield_bar_canvas.create_rectangle(
-                                sx1, 2, sx2, 10, fill=col_seg, outline=''
-                            )
-                        else:
-                            self.shield_bar_canvas.create_rectangle(
-                                sx1, 2, sx2, 10, fill='#0D1A10', outline=''
-                            )
+                if not self.escudo_fue_activado_alguna_vez:
+                    self.shield_bar_canvas.delete('all')
                 else:
-                    # Sin escudo: barra vacía con borde gris
-                    self.shield_bar_canvas.create_rectangle(
-                        0, 0, 120, 12, fill='#0A0A15', outline='#2A2A3A', width=1
-                    )
-                    for s in range(10):
+                    self.shield_bar_canvas.delete('all')
+                    # Calcular duración máxima (siempre, no solo cuando está activo)
+                    duracion_max = 150
+                    powerups = self.datos_juego.get('powerups', {})
+                    for pu in powerups.values():
+                        if pu.get('duration'):
+                            duracion_max = pu['duration']
+                            break
+
+                    if self.escudo_activo and self.escudo_restante > 0:
+                        # Fondo con borde verde
                         self.shield_bar_canvas.create_rectangle(
-                            s * 12 + 1, 2, s * 12 + 11, 10,
-                            fill='#111122', outline=''
+                            0, 0, 120, 12, fill='#0A1A10', outline='#00AA66', width=1
                         )
+                        # Segmentos de la barra (10 segmentos)
+                        num_seg = 10
+                        seg_activos = int(num_seg * (float(self.escudo_restante) / duracion_max))
+                        for s in range(num_seg):
+                            sx1 = s * 12 + 1
+                            sx2 = sx1 + 10
+                            if s < seg_activos:
+                                verde = min(255, 180 + s * 6)
+                                col_seg = '#{:02X}{:02X}{:02X}'.format(0, verde, int(verde * 0.6))
+                                self.shield_bar_canvas.create_rectangle(
+                                    sx1, 2, sx2, 10, fill=col_seg, outline=''
+                                )
+                            else:
+                                self.shield_bar_canvas.create_rectangle(
+                                    sx1, 2, sx2, 10, fill='#0D1A10', outline=''
+                                )
+                    else:
+                        # Sin escudo: barra vacía con borde gris
+                        self.shield_bar_canvas.create_rectangle(
+                            0, 0, 120, 12, fill='#0A0A15', outline='#2A2A3A', width=1
+                        )
+                        for s in range(10):
+                            self.shield_bar_canvas.create_rectangle(
+                                s * 12 + 1, 2, s * 12 + 11, 10,
+                                fill='#111122', outline=''
+                            )
             if self.label_lineas and self.tipo_juego == 'TETRIS':
                 self.label_lineas.config(text=str(self.lineas_eliminadas_total))
         else:
@@ -1616,4 +1665,3 @@ if __name__ == "__main__":
         sys.exit(1)
     juego = Juego(datos_juego)
     juego.run()
-    
