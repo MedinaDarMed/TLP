@@ -1,0 +1,1294 @@
+================================================================================
+          BITÁCORA FINAL DE CAMBIOS: PROYECTO BRICKSCRIPT - SNAKE EVOLVED
+================================================================================
+
+Cambios realizados (Actividad 4 - Snake).
+---------------------------------------------------------------------------------------------------------------------
+
+Se implemento la Actividad 4: Evolucion del Lenguaje y Logica de Niveles (Caso Snake).
+Los cambios garantizan retrocompatibilidad: el snake.brick original sigue siendo compilable
+y ejecutable sin errores.
+
+=======================================================================
+  RESUMEN DE CAMBIOS ANDERSON - ACTIVIDAD 4, PUNTO A, ITEMS 1 Y 2
+=======================================================================
+
+==============================================
+A. Personalizacion Geometrica de la Serpiente
+==============================================
+
+# snake.brick
+
+* Cambio 1 — Se agrega un segundo SHAPE de tipo TRIANGULAR para demostrar la nueva forma:
+
+- ANTES
+(solo existia PIXEL con SHAPE_TYPE: CIRCULAR)
+
+- DESPUES
+DEFINE SHAPE PIXEL_TRI:
+  STATE 1:
+    [1]
+  SHAPE_TYPE: TRIANGULAR
+END
+
+* Cambio 2 — Se mantiene LEVEL NYAN_CAT en el archivo para activar el nivel mas alto.
+
+# snake.bnf
+
+* Cambio 1 — <programa>: se agrega <nivel_opcional> como elemento del programa
+
+- ANTES
+<programa> ::= <tipo_juego> <grid> <definiciones> <eventos>
+
+- DESPUES
+<programa> ::= <tipo_juego> <grid> <nivel_opcional> <definiciones> <eventos>
+
+* Cambio 2 — Se agrega la regla <nivel_opcional> y <nombre_nivel> (no existian)
+
+- ANTES
+(no existian estas reglas)
+
+- DESPUES
+<nivel_opcional> ::= "LEVEL" <nombre_nivel> | e
+<nombre_nivel>   ::= "BABY" | "EASY" | "MEDIUM" | "HARD" | "NYAN_CAT"
+
+* Cambio 3 — <definicion_shape>: se agrega <atributos_shape_opcionales> antes del END
+
+- ANTES
+<definicion_shape> ::= "DEFINE" "SHAPE" <identificador> ":" <estados> "END"
+
+- DESPUES
+<definicion_shape> ::= "DEFINE" "SHAPE" <identificador> ":" <estados> <atributos_shape_opcionales> "END"
+
+* Cambio 4 — Se agregan reglas para SHAPE_TYPE (no existian)
+
+- ANTES
+(no existian estas reglas)
+
+- DESPUES
+<atributos_shape_opcionales> ::= <atributo_shape> <atributos_shape_opcionales> | e
+<atributo_shape>             ::= <atributo_shape_type>
+<atributo_shape_type>        ::= "SHAPE_TYPE" ":" <tipo_forma>
+<tipo_forma>                 ::= "RECTANGULAR" | "CIRCULAR" | "TRIANGULAR"
+
+# runtime.py — Seccion de dibujo del Snake
+
+* Cambio 1 — Se implementa la forma TRIANGULAR para los segmentos del cuerpo.
+  Usa create_polygon() con tres vertices: punta superior centrada, esquina inferior
+  izquierda y esquina inferior derecha de la celda.
+
+==============================================
+B. Logica de Niveles (BABY, EASY, MEDIUM, HARD, NYAN_CAT)
+==============================================
+
+# runtime.py — Bloque SNAKE en __init__()
+
+* Cambio 1 — Se elimina la velocidad fija (0.15) y se reemplaza por un mapa de velocidades
+  indexado por nivel. Cada nivel tiene su propia velocidad de ON_TICK:
+
+- ANTES
+            self.velocidad_gravedad = 0.15
+
+- DESPUES
+            velocidades_nivel = {
+                'BABY':     0.20,   # muy lenta
+                'EASY':     0.15,   # velocidad original (retrocompat)
+                'MEDIUM':   0.10,   # moderada
+                'HARD':     0.06,   # rapida
+                'NYAN_CAT': 0.08,   # similar a HARD con efectos visuales
+            }
+            self.velocidad_gravedad = velocidades_nivel.get(self.level, 0.15)
+
+  RETROCOMPATIBILIDAD: si el JSON no tiene campo 'level', get() devuelve 'BABY'
+  (ya inicializado con ese default) y velocidades_nivel.get() devuelve 0.15, que es
+  exactamente la velocidad que tenia el snake original.
+
+* Cambio 2 — Se muestra el nivel activo en el titulo de la ventana:
+
+- ANTES
+        self.root.title("BrickScript - " + self.tipo_juego)
+
+- DESPUES (solo para SNAKE)
+            self.root.title('BrickScript - SNAKE  |  Nivel: ' + self.level)
+
+* Cambio 3 — Color de los segmentos indexado por nivel:
+
+- ANTES
+                color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
+
+- DESPUES
+                if self.level == 'NYAN_CAT':
+                    color = self.nyan_colors[i % len(self.nyan_colors)]
+                elif self.level == 'HARD':
+                    intensidad = max(80, 255 - i * 8)
+                    color = '#{:02X}{:02X}{:02X}'.format(intensidad, 0, 0)
+                elif self.level == 'MEDIUM':
+                    intensidad = max(60, 220 - i * 6)
+                    color = '#{:02X}{:02X}{:02X}'.format(intensidad, intensidad // 2, 0)
+                elif self.level == 'EASY':
+                    intensidad = max(80, 200 - i * 5)
+                    color = '#{:02X}{:02X}{:02X}'.format(0, intensidad, 0)
+                else:  # BABY
+                    color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
+
+# games/snake.json
+
+* Cambio 1 — Se agrega el shape PIXEL_TRI con SHAPE_TYPE TRIANGULAR al JSON compilado:
+  "shape_types": { "PIXEL": "CIRCULAR", "PIXEL_TRI": "TRIANGULAR" }
+
+=======================================================================
+  RESUMEN DE CAMBIOS DARWIN - ACTIVIDAD 4, PUNTO B, ITEMS 1 Y 2
+=======================================================================
+
+# snake.bnf
+--------------------------------------------------------------------------------
+- Soporte para nuevas mecánicas de juego:
+  * Eventos: ON EAT_POISON, ON EAT_SHIELD, ON COLLISION_CLOUD.
+  * Acciones: DECREASE_SCORE, RESET_SCORE, GRANT_SHIELD.
+- Soporte para Atributos:
+  * Inclusión de DURATION en el bloque DEFINE POWERUP.
+  * Inclusión de LEVEL en la cabecera del programa.
+
+# compiler.py
+--------------------------------------------------------------------------------
+- Actualización del Parser: Ahora procesa bloques de POWERUP con atributos
+  opcionales (DURATION, COLOR, CHANCE) y estados.
+- Traducción de Niveles: Implementación del reconocimiento del campo LEVEL para
+  establecer el límite de progresión en el JSON resultante.
+- Compatibilidad: Mantenimiento estricto de la sintaxis de Python 2.7.
+
+# runtime.py
+--------------------------------------------------------------------------------
+- Nuevas Entidades y Renderizado:
+  * Fruta Venenosa (POISON): Cuadro magenta con una "X" negra.
+  * Nube Obstáculo (CLOUD): Óvalo gris con símbolo "~".
+  * Ítem Escudo (SHIELD): Diamante cian con contorno verde.
+- Lógica de Escudo (Temporizado):
+  * Al activarse, genera un halo verde pulsante (usando math.sin).
+  * Otorga inmunidad total contra colisiones letales (Veneno y Nubes).
+  * Duración configurable mediante DURATION (especificado en ticks).
+- Sistema de Progresión de Niveles:
+  * Escala de Niveles: BABY -> EASY -> MEDIUM -> HARD -> NYAN_CAT.
+  * Velocidades Finales: 0.15s, 0.10s, 0.08s, 0.06s, 0.04s.
+  * Umbrales de Puntos: 0, 20, 30, 40, 50 puntos acumulados.
+- Optimizaciones de Código:
+  * Corrección del Game Loop: Reinicio del timer_gravedad para aplicar cambios
+    de velocidad en tiempo real.
+  * Scoreboard: Nuevo método actualizar_marcador() para refrescar la GUI.
+  * Módulos: Incorporación de "import math" para efectos visuales.
+
+4. ENTORNO Y DESPLIEGUE
+--------------------------------------------------------------------------------
+- Intérprete Local: Uso de Python 2.7 ubicado en .\python27 para asegurar que
+  el juego corra sin dependencias externas del sistema.
+- Ejecución Unificada: Actualización de jugar.bat para automatizar la
+  compilación y ejecución con un solo comando.
+- Juego de Referencia: games/snake_evolved.brick (Actualizado a LEVEL NYAN_CAT).
+
+--------------------------------------------------------------------------------
+
+=======================================================================
+  RESUMEN DE CAMBIOS SARA - ACTIVIDAD 4, PUNTO C, ITEMS 2 Y 3
+=======================================================================
+
+Se ha modificado cinco archivos. A continuación se listan únicamente los cambios de lógica:
+
+# snake_evolved.brick
+
+* Cambio 1 — DEFINE LEVELS: se reemplazan los niveles EASY/MEDIUM/HARD por ENTUSIASTA, y se agrega HAS_POWERUP a todos los niveles.
+
+- ANTES
+DEFINE LEVELS:
+    LEVEL BABY:
+        SPEED: 15
+        HAS_POISON: FALSE
+        HAS_OBSTACLES: FALSE
+        MIN_SCORE: 0
+    END
+    LEVEL EASY:
+        SPEED: 10
+        HAS_POISON: FALSE
+        HAS_OBSTACLES: FALSE
+        MIN_SCORE: 20
+    END
+    LEVEL MEDIUM:
+        SPEED: 7
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: FALSE
+        MIN_SCORE: 30
+    END
+    LEVEL HARD:
+        SPEED: 5
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: TRUE
+        MIN_SCORE: 40
+    END
+    LEVEL NYAN_CAT:
+        SPEED: 4
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: TRUE
+        MIN_SCORE: 50
+    END
+END
+
+- DESPUÉS
+DEFINE LEVELS:
+    LEVEL BABY:
+        SPEED: 15
+        HAS_POISON: FALSE
+        HAS_OBSTACLES: FALSE
+        HAS_POWERUP: FALSE
+        MIN_SCORE: 0
+    END
+    LEVEL ENTUSIASTA:
+        SPEED: 8
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: FALSE
+        HAS_POWERUP: TRUE
+        MIN_SCORE: 30
+    END
+    LEVEL NYAN_CAT:
+        SPEED: 3
+        HAS_POISON: TRUE
+        HAS_OBSTACLES: TRUE
+        HAS_POWERUP: TRUE
+        MIN_SCORE: 80
+    END
+END
+
+* Cambio 2 — SHIELD_PU: se reemplaza DURATION (ticks) por DURATION_SECONDS (segundos legibles).
+
+- ANTES
+DEFINE POWERUP SHIELD_PU:
+    COLOR: #00FFAA
+    DURATION: 150
+END
+
+-DESPUÉS
+DEFINE POWERUP SHIELD_PU:
+    COLOR: #00FFAA
+    DURATION_SECONDS: 8
+END
+
+# snake.bnf
+
+* Cambio 1 — <nombre_nivel>: se agrega "ENTUSIASTA" como token válido
+
+- ANTES
+<nombre_nivel> ::= "BABY" | "EASY" | "MEDIUM" | "HARD" | "NYAN_CAT"
+
+- DESPUÉS
+<nombre_nivel> ::= "BABY" | "ENTUSIASTA" | "NYAN_CAT" | "EASY" | "MEDIUM" | "HARD"
+
+* Cambio 2 — <atrib_pu>: se agrega la alternativa DURATION_SECONDS
+
+- ANTES
+<atrib_pu> ::= "COLOR"    ":" <color_hex>
+             | "DURATION" ":" <numero>
+
+- DESPUÉS
+<atrib_pu> ::= "COLOR"            ":" <color_hex>
+             | "DURATION"         ":" <numero>
+             | "DURATION_SECONDS" ":" <numero>
+
+* Cambio 3 — <atrib_nivel>: se agrega HAS_POWERUP (no existía)
+
+- ANTES
+<atrib_nivel> ::= "SPEED"         ":" <numero>
+                | "HAS_POISON"    ":" <booleano>
+                | "HAS_OBSTACLES" ":" <booleano>
+                | "MIN_SCORE"     ":" <numero>
+      
+- DESPUÉS
+<atrib_nivel> ::= "SPEED"         ":" <numero>
+                | "HAS_POISON"    ":" <booleano>
+                | "HAS_OBSTACLES" ":" <booleano>
+                | "HAS_POWERUP"   ":" <booleano>
+                | "MIN_SCORE"     ":" <numero>
+
+# compiler.py
+
+* Cambio 1 — parsear_powerup(): se agrega el bloque para el token DURATION_SECONDS
+
+- ANTES
+elif token == 'DURATION':
+    self.consumir('DURATION')
+    self.consumir(':')
+    duracion = int(self.consumir())
+elif token == 'COLOR':
+
+-DESPUÉS
+elif token == 'DURATION':
+    self.consumir('DURATION')
+    self.consumir(':')
+    duracion = int(self.consumir())
+elif token == 'DURATION_SECONDS':
+    self.consumir('DURATION_SECONDS')
+    self.consumir(':')
+    segundos = int(self.consumir())
+    duracion = segundos * 20   # 1 seg = 20 iteraciones a 50 ms/iter
+elif token == 'COLOR':
+
+* Cambio 2 — parsear_levels(): se agrega has_powerup al dict cfg y su bloque de parseo
+
+- ANTES
+cfg = {
+    'speed':         15,
+    'has_poison':    False,
+    'has_obstacles': False,
+    'min_score':     0,
+}
+
+- DESPUÉS
+cfg = {
+    'speed':         15,
+    'has_poison':    False,
+    'has_obstacles': False,
+    'has_powerup':   False,   # NUEVO
+    'min_score':     0,
+}
+
+- ANTES
+elif atrib == 'HAS_OBSTACLES':
+    self.consumir('HAS_OBSTACLES')
+    self.consumir(':')
+    cfg['has_obstacles'] = (self.consumir() == 'TRUE')
+elif atrib == 'MIN_SCORE':
+
+- DESPUÉS
+elif atrib == 'HAS_OBSTACLES':
+    self.consumir('HAS_OBSTACLES')
+    self.consumir(':')
+    cfg['has_obstacles'] = (self.consumir() == 'TRUE')
+elif atrib == 'HAS_POWERUP':
+    self.consumir('HAS_POWERUP')
+    self.consumir(':')
+    cfg['has_powerup'] = (self.consumir() == 'TRUE')
+elif atrib == 'MIN_SCORE':
+
+# runtime.py
+
+* Cambio 1 — __init__(), bloque SNAKE: se agrega ENTUSIASTA a colores_nivel
+
+- ANTES
+self.colores_nivel = {
+    'BABY':     '#00FF88',
+    'EASY':     '#88FF00',
+    'MEDIUM':   '#FFCC00',
+    'HARD':     '#FF4400',
+    'NYAN_CAT': '#FF00FF',
+}
+
+- DESPUÉS
+self.colores_nivel = {
+    'BABY':       '#00FF88',
+    'EASY':       '#88FF00',
+    'ENTUSIASTA': '#FF9900',   # NUEVO
+    'MEDIUM':     '#FFCC00',
+    'HARD':       '#FF4400',
+    'NYAN_CAT':   '#FF00FF',
+}
+
+* Cambio 2 — __init__(), bloque SNAKE: se actualiza secuencia_niveles, umbrales_nivel y velocidades_nivel para incluir ENTUSIASTA y corregir valores de NYAN_CAT
+
+- ANTES
+self.secuencia_niveles = ['BABY', 'EASY', 'MEDIUM', 'HARD', 'NYAN_CAT']
+self.umbrales_nivel = {
+    'BABY':     0,
+    'EASY':     20,
+    'MEDIUM':   30,
+    'HARD':     40,
+    'NYAN_CAT': 50,
+}
+self.velocidades_nivel = {
+    'BABY':     0.15,
+    'EASY':     0.10,
+    'MEDIUM':   0.08,
+    'HARD':     0.06,
+    'NYAN_CAT': 0.04,
+}
+
+- DESPUÉS
+self.secuencia_niveles = ['BABY', 'EASY', 'ENTUSIASTA', 'MEDIUM', 'HARD', 'NYAN_CAT']
+self.umbrales_nivel = {
+    'BABY':       0,
+    'EASY':       20,
+    'ENTUSIASTA': 30,    # NUEVO
+    'MEDIUM':     50,
+    'HARD':       80,
+    'NYAN_CAT':   120,   # corregido (antes 50)
+}
+self.velocidades_nivel = {
+    'BABY':       0.15,
+    'EASY':       0.10,
+    'ENTUSIASTA': 0.08,   # NUEVO
+    'MEDIUM':     0.08,
+    'HARD':       0.06,
+    'NYAN_CAT':   0.03,   # corregido (antes 0.04)
+}
+
+* Cambio 3 — __init__(), bloque SNAKE: secuencia_niveles pasa a construirse dinámicamente desde levels_config tras cargarlo
+
+- ANTES
+if self.levels_config:
+    for nombre_nv, cfg in self.levels_config.items():
+        self.umbrales_nivel[nombre_nv]    = cfg.get('min_score', self.umbrales_nivel.get(nombre_nv, 0))
+        self.velocidades_nivel[nombre_nv] = cfg.get('speed', 15) / 100.0
+
+- DESPUÉS
+if self.levels_config:
+    for nombre_nv, cfg in self.levels_config.items():
+        self.umbrales_nivel[nombre_nv]    = cfg.get('min_score', self.umbrales_nivel.get(nombre_nv, 0))
+        self.velocidades_nivel[nombre_nv] = cfg.get('speed', 15) / 100.0
+    self.secuencia_niveles = sorted(        # NUEVO
+        self.levels_config.keys(),
+        key=lambda n: self.levels_config[n].get('min_score', 0)
+    )
+
+* Cambio 4 — __init__(), bloque SNAKE: se declara nyan_hit_flash_timer
+
+- ANTES
+self.shield_flash_timer  = 0
+self.nivel_flash_timer   = 0
+self.nivel_anterior      = 'BABY'
+
+- DESPUÉS
+self.shield_flash_timer   = 0
+self.nivel_flash_timer    = 0
+self.nivel_anterior       = 'BABY'
+self.nyan_hit_flash_timer = 0   # NUEVO
+
+* Cambio 5 — snake_mover_jugador(): colisión con pared en nivel NYAN_CAT pasa a tener lógica propia
+
+- ANTES
+if not (0 <= nueva_cabeza[0] < self.ancho and 0 <= nueva_cabeza[1] < self.alto):
+    if self.escudo_activo:
+        nueva_cabeza = (nueva_cabeza[0] % self.ancho,
+                        nueva_cabeza[1] % self.alto)
+    else:
+        self.ejecutar_evento('ON_COLLISION_WALL')
+        return
+
+- DESPUÉS
+if not (0 <= nueva_cabeza[0] < self.ancho and 0 <= nueva_cabeza[1] < self.alto):
+    if self.escudo_activo:
+        nueva_cabeza = (nueva_cabeza[0] % self.ancho,
+                        nueva_cabeza[1] % self.alto)
+    elif self.level == 'NYAN_CAT':
+        if self.puntuacion <= 0:
+            self.juego_terminado = True
+            return
+        else:
+            self.puntuacion = 0
+            self.actualizar_marcador()
+            self.nyan_hit_flash_timer = 40
+            nueva_cabeza = (nueva_cabeza[0] % self.ancho,
+                            nueva_cabeza[1] % self.alto)
+    else:
+        self.ejecutar_evento('ON_COLLISION_WALL')
+        return
+
+* Cambio 6 — snake_mover_jugador(): colisión con el cuerpo propio en nivel NYAN_CAT pasa a tener lógica propia
+
+- ANTES
+if nueva_cabeza in self.serpiente_cuerpo[:-1]:
+    if not self.escudo_activo:
+        self.ejecutar_evento('ON_COLLISION_SELF')
+        return
+    # Con escudo: se ignora la colisión
+
+- DESPUÉS
+if nueva_cabeza in self.serpiente_cuerpo[:-1]:
+    if not self.escudo_activo:
+        if self.level == 'NYAN_CAT':
+            if self.puntuacion <= 0:
+                self.juego_terminado = True
+                return
+            else:
+                self.puntuacion = 0
+                self.actualizar_marcador()
+                self.nyan_hit_flash_timer = 40
+        else:
+            self.ejecutar_evento('ON_COLLISION_SELF')
+            return
+    # Con escudo: se ignora la colisión
+
+* Cambio 7 — ejecutar_evento(): SPAWN SHIELD pasa a ser condicional según has_powerup del nivel activo
+
+- ANTES
+elif objeto == 'SHIELD': self.snake_spawn_escudo()
+
+- DESPUÉS
+elif objeto == 'SHIELD':
+    cfg_nivel_actual = self.levels_config.get(self.level, {})
+    if cfg_nivel_actual.get('has_powerup', True):
+        self.snake_spawn_escudo()
+
+* Cambio 8 — snake_crecer(): se separa la gestión de nubes (has_obstacles) de la del escudo (has_powerup)
+
+- ANTES
+if cfg.get('has_obstacles', True):
+    self.posiciones_nubes = [(5, 5), (15, 15), (5, 15), (15, 5)]
+    if self.posicion_escudo is None:
+        self.snake_spawn_escudo()
+else:
+    self.posiciones_nubes = []
+    self.posicion_escudo = None
+
+- DESPUÉS
+if cfg.get('has_obstacles', True):
+    self.posiciones_nubes = [(5, 5), (15, 15), (5, 15), (15, 5)]
+else:
+    self.posiciones_nubes = []
+
+if cfg.get('has_powerup', True):
+    if self.posicion_escudo is None:
+        self.snake_spawn_escudo()
+else:
+    self.posicion_escudo = None
+
+* Cambio 9 — dibujar(), color de serpiente: se agrega el caso ENTUSIASTA
+
+- ANTES
+elif self.level == 'EASY':
+    intensidad = max(80, 200 - i * 5)
+    color = '#{:02X}{:02X}{:02X}'.format(0, intensidad, 0)
+else:
+    color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
+
+- DESPUÉS
+elif self.level == 'EASY':
+    intensidad = max(80, 200 - i * 5)
+    color = '#{:02X}{:02X}{:02X}'.format(0, intensidad, 0)
+elif self.level == 'ENTUSIASTA':
+    r = max(150, 255 - i * 5)
+    g = max(60,  160 - i * 8)
+    color = '#{:02X}{:02X}{:02X}'.format(r, g, 0)   # NUEVO: naranja dorado degradado
+else:
+    color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
+
+* Cambio 10 — dibujar(): se agrega el overlay visual de colisión sin muerte para NYAN_CAT
+
+- ANTES
+# Flash verde al recoger el escudo
+if hasattr(self, 'shield_flash_timer') and self.shield_flash_timer > 0:
+
+- DESPUÉS
+if hasattr(self, 'nyan_hit_flash_timer') and self.nyan_hit_flash_timer > 0:   # NUEVO
+    self.nyan_hit_flash_timer -= 1
+    if self.nyan_hit_flash_timer > 5:
+        self.canvas.create_rectangle(
+            0, self.alto_canvas // 2 - 32,
+            self.ancho_canvas, self.alto_canvas // 2 + 32,
+            fill='#1A0000', outline=''
+        )
+        self.canvas.create_text(
+            self.ancho_canvas // 2, self.alto_canvas // 2 - 14,
+            text=u'\u26A0 NYAN CAT \u26A0',
+            fill='#FF00FF', font=('Consolas', 13, 'bold')
+        )
+        self.canvas.create_text(
+            self.ancho_canvas // 2, self.alto_canvas // 2 + 10,
+            text=u'PUNTOS PERDIDOS',
+            fill='#FF4444', font=('Consolas', 10, 'bold')
+        )
+
+# Flash verde al recoger el escudo
+if hasattr(self, 'shield_flash_timer') and self.shield_flash_timer > 0:
+
+=======================================================================
+  RESUMEN DE CAMBIOS SANTIAGO - ACTIVIDAD 4, PUNTO B ITEM 3 Y PUNTO C, ITEM 1
+=======================================================================
+
+Se modifico un archivo: runtime.py
+Los cambios implementan tres bloques de trabajo:
+  - Punto B, Item 3:  Power-Up "No Morir" (escudo temporal con barra visual).
+  - Punto C, Item 1:  Nivel BABY como default sin veneno ni obstaculos.
+  - Mejoras visuales: panel lateral, margen del canvas, comida palpitante,
+                      venenos con intensidad variable, escudo animado, Game Over.
+
+Los cambios preservan retrocompatibilidad: snake.brick y tetris.json originales
+siguen funcionando sin modificacion.
+
+=======================================================================
+  PUNTO B - ITEM 3: Power-Up "No Morir" (Escudo Temporal)
+=======================================================================
+
+Descripcion general:
+  Al comer el item SHIELD, la serpiente recibe invulnerabilidad temporal durante
+  n ticks definidos por el campo DURATION del bloque DEFINE POWERUP en el .brick.
+  Mientras el escudo esta activo, las colisiones con paredes, cuerpo propio y nubes
+  no matan a la serpiente. En paredes se aplica wrap-around (la serpiente aparece
+  por el lado opuesto). La duracion se muestra en el panel lateral como una barra
+  segmentada que se consume en tiempo real.
+
+# runtime.py - __init__(), bloque SNAKE
+
+* Cambio 1 - Se agregan las variables de estado del escudo.
+
+- ANTES
+            self.posicion_escudo     = None
+            self.escudo_halo_frame   = 0
+
+- DESPUES
+            self.escudo_activo                  = False
+            self.escudo_fue_activado_alguna_vez = False
+            self.escudo_restante                = 0     # Ticks restantes de invulnerabilidad
+            self.posicion_escudo                = None
+            self.escudo_halo_frame              = 0     # Para la animacion del halo
+
+  escudo_fue_activado_alguna_vez controla si la barra grafica debe mostrarse.
+  Sin esta variable la barra aparecia vacia desde el inicio del juego, antes
+  de que el jugador recogiera el escudo por primera vez.
+
+* Cambio 2 - Se agregan contadores de animacion para el escudo y el item en el suelo.
+
+- ANTES
+            self.food_pulse_frame    = 0
+            self.poison_flash_frame  = 0
+
+- DESPUES
+            self.food_pulse_frame    = 0
+            self.poison_flash_frame  = 0
+            self.shield_spin_frame   = 0   # Para rotacion del item escudo en el suelo
+            self.shield_flash_timer  = 0   # Flash verde al recoger el escudo
+
+
+# runtime.py - __init__(), bloque GUI (es_remake)
+
+* Cambio 3 - Se agrega el panel de la barra de escudo en el marco lateral.
+  Solo se muestra en juegos SNAKE con version remake.
+
+- ANTES
+            # No existia barra de escudo en el panel
+
+- DESPUES
+            if self.tipo_juego == 'SNAKE':
+                tk.Label(self.marco_score, text='ESCUDO',
+                        bg=PANEL_BG, fg=SUBTEXT,
+                        font=('Consolas', 8, 'bold')).pack(pady=(4, 0))
+                self.shield_bar_canvas = tk.Canvas(
+                    self.marco_score, width=120, height=12,
+                    bg='#0E0E1C', highlightthickness=1, highlightbackground='#2A1A5A'
+                )
+                self.shield_bar_canvas.pack(pady=(2, 8))
+            else:
+                self.shield_bar_canvas = None
+
+
+# runtime.py - game_loop()
+
+* Cambio 4 - El descuento de escudo_restante se mueve FUERA del bloque condicional
+  de velocidad (timer_gravedad) para que la barra se consuma a ritmo constante
+  de 50 ms por tick, sin importar la velocidad del nivel.
+
+  Problema anterior: el descuento ocurria solo cuando tocaba mover la serpiente.
+  En BABY (velocidad baja) la barra practicamente no se consumia visualmente.
+  Ademas, actualizar_marcador() solo se llamaba desde eventos (ON_EAT_FOOD, etc.),
+  por lo que la barra no se actualizaba entre eventos aunque el escudo estuviera
+  contando.
+
+- ANTES
+        self.timer_gravedad += 0.05
+        if self.timer_gravedad >= self.velocidad_gravedad:
+            self.timer_gravedad = 0
+            if self.tipo_juego == 'SNAKE':
+                if self.escudo_activo:
+                    self.escudo_restante -= 1
+                    if self.escudo_restante <= 0:
+                        self.escudo_activo = False
+            self.ejecutar_evento('ON_TICK')
+        self.dibujar()
+        self.timer_id = self.root.after(50, self.game_loop)
+
+- DESPUES
+        if self.tipo_juego == 'SNAKE' and self.escudo_activo:
+            self.escudo_restante -= 1
+            if self.escudo_restante <= 0:
+                self.escudo_activo = False
+
+        self.timer_gravedad += 0.05
+        if self.timer_gravedad >= self.velocidad_gravedad:
+            self.timer_gravedad = 0
+            self.ejecutar_evento('ON_TICK')
+
+        self.dibujar()
+        if self.es_remake and self.tipo_juego == 'SNAKE':
+            self.actualizar_marcador()
+        self.timer_id = self.root.after(50, self.game_loop)
+
+
+# runtime.py - ejecutar_evento(), verbo GRANT_SHIELD
+
+* Cambio 5 - Al otorgar el escudo se activa escudo_fue_activado_alguna_vez y se
+  lanza el timer del flash visual. La duracion se lee del campo DURATION del
+  powerup definido en el JSON (compilado desde el .brick).
+
+- ANTES
+                elif verbo == 'GRANT_SHIELD':
+                    # No existia
+
+- DESPUES
+                elif verbo == 'GRANT_SHIELD':
+                    duracion_ticks = 150  # Valor por defecto (7.5 segundos)
+                    powerups = self.datos_juego.get('powerups', {})
+                    for pu_nombre in powerups:
+                        if 'duration' in powerups[pu_nombre] and powerups[pu_nombre]['duration'] is not None:
+                            duracion_ticks = powerups[pu_nombre]['duration']
+                            break
+                    self.escudo_activo                  = True
+                    self.escudo_fue_activado_alguna_vez = True
+                    self.escudo_restante                = duracion_ticks
+                    self.shield_flash_timer             = 12
+
+
+# runtime.py - ejecutar_evento(), verbo SPAWN objeto SHIELD
+
+* Cambio 6 - El escudo solo se spawnea si el nivel activo tiene HAS_POWERUP: TRUE.
+  Asi en BABY (HAS_POWERUP: FALSE) el item escudo no aparece en el tablero.
+
+- ANTES
+                        elif objeto == 'SHIELD':
+                            self.snake_spawn_escudo()
+
+- DESPUES
+                        elif objeto == 'SHIELD':
+                            cfg_nivel_actual = self.levels_config.get(self.level, {})
+                            if cfg_nivel_actual.get('has_powerup', True):
+                                self.snake_spawn_escudo()
+
+
+# runtime.py - snake_mover_jugador()
+
+* Cambio 7 - Colision con pared: si el escudo esta activo se aplica wrap-around
+  en lugar de game over (Power-Up "No Morir").
+
+- ANTES
+        if not (0 <= nueva_cabeza[0] < self.ancho and 0 <= nueva_cabeza[1] < self.alto):
+            self.ejecutar_evento('ON_COLLISION_WALL')
+            return
+
+- DESPUES
+        if not (0 <= nueva_cabeza[0] < self.ancho and 0 <= nueva_cabeza[1] < self.alto):
+            if self.escudo_activo:
+                nueva_cabeza = (nueva_cabeza[0] % self.ancho,
+                                nueva_cabeza[1] % self.alto)
+            elif self.level == 'NYAN_CAT':
+                # ... logica especial de NYAN_CAT (puntos a 0, sigue vivo)
+            else:
+                self.ejecutar_evento('ON_COLLISION_WALL')
+                return
+
+* Cambio 8 - Colision con cuerpo propio: si el escudo esta activo se ignora
+  la colision y la serpiente sigue viva.
+
+- ANTES
+        if nueva_cabeza in self.serpiente_cuerpo[:-1]:
+            self.ejecutar_evento('ON_COLLISION_SELF')
+            return
+
+- DESPUES
+        if nueva_cabeza in self.serpiente_cuerpo[:-1]:
+            if not self.escudo_activo:
+                # ... logica de colision (game over o NYAN_CAT especial)
+            # Con escudo: se ignora la colision (la serpiente sigue)
+
+* Cambio 9 - Colision con nubes: si el escudo esta activo se ignora la colision.
+
+- ANTES
+        if nueva_cabeza in self.posiciones_nubes:
+            self.ejecutar_evento('ON_COLLISION_CLOUD')
+
+- DESPUES
+        if nueva_cabeza in self.posiciones_nubes:
+            if not self.escudo_activo:
+                if self.puntuacion <= 0:
+                    self.juego_terminado = True
+                else:
+                    self.ejecutar_evento('ON_COLLISION_CLOUD')
+
+* Cambio 10 - Colision con frutas venenosas: si el escudo esta activo se come
+  la fruta pero no se aplica la penalizacion de puntos ni la muerte.
+
+- ANTES
+        if self.posicion_veneno and nueva_cabeza == self.posicion_veneno:
+            # Siempre aplicaba el efecto del veneno
+
+- DESPUES
+        for i, entrada in enumerate(self.posiciones_veneno):
+            vx, vy, _ = entrada
+            if nueva_cabeza == (vx, vy):
+                self.posiciones_veneno.pop(i)
+                # ... respawnear veneno en otra posicion
+                if not self.escudo_activo:
+                    # ... aplicar penalizacion solo sin escudo
+                break
+
+
+# runtime.py - snake_spawn_escudo()
+
+* Cambio 11 - Metodo nuevo. Busca una celda libre evitando serpiente, comida,
+  venenos y nubes, y coloca el item SHIELD en esa posicion.
+
+- ANTES
+            # No existia
+
+- DESPUES
+    def snake_spawn_escudo(self):
+        ocupadas = set(self.serpiente_cuerpo)
+        if self.posicion_comida: ocupadas.add(self.posicion_comida)
+        ocupadas.update((v[0], v[1]) for v in self.posiciones_veneno)
+        ocupadas.update(self.posiciones_nubes)
+        intentos = 0
+        while intentos < 200:
+            x = random.randint(0, self.ancho - 1)
+            y = random.randint(0, self.alto  - 1)
+            if (x, y) not in ocupadas:
+                self.posicion_escudo = (x, y)
+                return
+            intentos += 1
+
+
+# runtime.py - snake_crecer(), al subir de nivel
+
+* Cambio 12 - Al subir de nivel se gestiona el escudo segun HAS_POWERUP del nivel
+  nuevo, de forma independiente a la gestion de nubes (HAS_OBSTACLES).
+  Antes ambas estaban acopladas: entrar a ENTUSIASTA (sin nubes pero con escudo)
+  eliminaba el escudo tambien.
+
+- ANTES
+            if cfg.get('has_obstacles', True):
+                self.posiciones_nubes = [(5,5),(15,15),(5,15),(15,5)]
+                if self.posicion_escudo is None:
+                    self.snake_spawn_escudo()
+            else:
+                self.posiciones_nubes = []
+                self.posicion_escudo = None
+
+- DESPUES
+            if cfg.get('has_obstacles', True):
+                self.posiciones_nubes = [(5,5),(15,15),(5,15),(15,5)]
+            else:
+                self.posiciones_nubes = []
+
+            if cfg.get('has_powerup', True):
+                if self.posicion_escudo is None:
+                    self.snake_spawn_escudo()
+            else:
+                self.posicion_escudo = None
+
+
+# runtime.py - actualizar_marcador()
+
+* Cambio 13 - La barra de escudo solo se dibuja tras haber recogido el escudo
+  por primera vez (escudo_fue_activado_alguna_vez). Cuando esta activa muestra
+  segmentos verdes que se reducen; cuando se agota muestra segmentos oscuros;
+  antes de ser recogido el canvas queda en blanco (invisible al jugador).
+
+- ANTES
+            # Dibujaba la barra gris vacia siempre, incluso antes de recoger el escudo
+
+- DESPUES
+            if hasattr(self, 'shield_bar_canvas') and self.shield_bar_canvas:
+                if not self.escudo_fue_activado_alguna_vez:
+                    self.shield_bar_canvas.delete('all')  # invisible al inicio
+                else:
+                    self.shield_bar_canvas.delete('all')
+                    if self.escudo_activo and self.escudo_restante > 0:
+                        # Borde verde + segmentos activos en verde degradado
+                    else:
+                        # Borde gris + segmentos oscuros (escudo agotado)
+
+
+# runtime.py - dibujar(), bloque SNAKE
+
+* Cambio 14 - Se agrega el dibujo del item escudo animado en el suelo.
+  Incluye: anillo giratorio de 4 puntos (shield_spin_frame), halo pulsante exterior,
+  cuerpo con fondo oscuro (#003322), borde verde brillante (#00FFAA) y simbolo
+  de escudo unicode centrado.
+
+- ANTES
+            # No existia dibujo del item escudo
+
+- DESPUES
+            if self.posicion_escudo:
+                sx, sy = self.posicion_escudo
+                ang = self.shield_spin_frame * math.pi / 180
+                for i in range(4):                         # 4 puntos orbitales
+                    a = ang + i * (math.pi / 2)
+                    rx2 = cx + math.cos(a) * (ts * 0.48)
+                    ry2 = cy + math.sin(a) * (ts * 0.48)
+                    self.canvas.create_oval(rx2-2, ry2-2, rx2+2, ry2+2, fill='#00FFCC')
+                # Halo pulsante
+                pulso_item = abs(math.sin(self.shield_spin_frame * 0.06))
+                # Cuerpo: oval oscuro con borde #00FFAA
+                self.canvas.create_oval(px+4, py+4, px+ts-4, py+ts-4,
+                                        fill='#003322', outline='#00FFAA', width=2)
+                # Simbolo unicode de escudo centrado
+                self.canvas.create_text(cx, cy, text=u'\u26E8',
+                                        fill='#00FFAA', font=('Consolas', 12, 'bold'))
+
+* Cambio 15 - Se agrega el halo animado alrededor de la cabeza de la serpiente
+  cuando el escudo esta activo. Dos anillos concentricos (exterior tenue,
+  interior brillante) con pulso senoidal usando escudo_halo_frame. Se agregan
+  8 puntos orbitales que representan el tiempo restante como un arco que se vacia.
+
+- ANTES
+            # No existia halo de escudo activo en la serpiente
+
+- DESPUES
+            if self.escudo_activo and self.serpiente_cuerpo:
+                self.escudo_halo_frame += 1
+                pulso = abs(math.sin(self.escudo_halo_frame * 0.15))
+                radio_ext = int(ts * 0.9 + pulso * ts * 0.35)
+                # Anillo exterior verde tenue
+                self.canvas.create_oval(cx-radio_ext, cy-radio_ext,
+                                        cx+radio_ext, cy+radio_ext,
+                                        outline=color_ext, width=1)
+                radio_int = int(ts * 0.65 + pulso * ts * 0.2)
+                # Anillo interior verde brillante
+                self.canvas.create_oval(cx-radio_int, cy-radio_int,
+                                        cx+radio_int, cy+radio_int,
+                                        outline=color_int, width=3)
+                # 8 puntos orbitales: activos segun fraccion de tiempo restante
+                fraccion = float(self.escudo_restante) / duracion_max
+                for i in range(8):
+                    a = math.pi * 2 * i / 8
+                    if i / 8 < fraccion:
+                        self.canvas.create_oval(tx-2, ty-2, tx+2, ty+2,
+                                                fill='#00FFAA', outline='')
+
+* Cambio 16 - Se agrega el flash de pantalla verde al recoger el escudo.
+  Parpadea durante 12 frames alternando un overlay verde oscuro y muestra
+  el texto "ESCUDO ACTIVO" con el simbolo de escudo en cian.
+
+- ANTES
+            # No existia flash visual al recoger el escudo
+
+- DESPUES
+        if hasattr(self, 'shield_flash_timer') and self.shield_flash_timer > 0:
+            self.shield_flash_timer -= 1
+            if self.shield_flash_timer % 2 == 0:
+                self.canvas.create_rectangle(0, 0, ancho, alto,
+                                             fill='#003322', outline='')
+            if self.shield_flash_timer > 3:
+                self.canvas.create_text(..., text=u'\u26E8  ESCUDO ACTIVO  \u26E8',
+                                        fill='#00FFAA', font=('Consolas', 14, 'bold'))
+
+* Cambio 17 - El borde del canvas pulsa en verde sincronizado con el halo del
+  escudo cuando este esta activo, en lugar del borde estatico azul oscuro.
+
+- ANTES
+                self.canvas.config(highlightbackground='#1A1A3A', highlightthickness=2)
+
+- DESPUES
+            elif hasattr(self, 'escudo_activo') and self.escudo_activo:
+                pulso_borde = abs(math.sin(self.escudo_halo_frame * 0.12))
+                verde_int = int(150 + pulso_borde * 105)
+                color_escudo_borde = '#{:02X}{:02X}{:02X}'.format(
+                    0, verde_int, int(verde_int * 0.65))
+                self.canvas.config(highlightbackground=color_escudo_borde,
+                                   highlightthickness=3)
+
+
+=======================================================================
+  PUNTO C - ITEM 1: Nivel BABY Como Default
+=======================================================================
+
+Descripcion general:
+  El nivel BABY es el nivel inicial de todo juego snake_evolved.
+  No tiene frutas venenosas (HAS_POISON: FALSE), no tiene obstaculos/nubes
+  (HAS_OBSTACLES: FALSE) y no tiene el item escudo (HAS_POWERUP: FALSE).
+  La velocidad de tick es la mas lenta (SPEED: 15 -> 0.15 s/iter).
+  El jugador siempre empieza en BABY sin importar el nivel maximo definido
+  en el .brick, y sube de nivel automaticamente segun su puntuacion acumulada.
+
+# runtime.py - __init__(), bloque SNAKE
+
+* Cambio 1 - El nivel activo siempre comienza en BABY.
+  nivel_maximo lee el campo "level" del JSON (el nivel mas alto alcanzable);
+  level es el nivel actual, que empieza en BABY y sube con la puntuacion.
+
+- ANTES
+            self.level = self.datos_juego.get('level', 'BABY')
+            self.velocidad_gravedad = 0.15
+
+- DESPUES
+            self.nivel_maximo       = self.datos_juego.get('level', 'BABY')
+            self.level              = 'BABY'
+            self.velocidad_gravedad = self.velocidades_nivel['BABY']   # 0.15
+
+
+* Cambio 2 - Se agregan los umbrales de puntuacion y velocidades por nivel.
+  Si el .brick tiene DEFINE LEVELS estos valores se sobreescriben al leer
+  el JSON; si no los tiene (retrocompat) se usan los fallback hardcodeados.
+
+- ANTES
+            # No existian umbrales ni velocidades por nivel
+
+- DESPUES
+            self.umbrales_nivel = {
+                'BABY':       0,
+                'EASY':       20,
+                'ENTUSIASTA': 30,
+                'MEDIUM':     50,
+                'HARD':       80,
+                'NYAN_CAT':   120,
+            }
+            self.velocidades_nivel = {
+                'BABY':       0.15,
+                'EASY':       0.10,
+                'ENTUSIASTA': 0.08,
+                'MEDIUM':     0.08,
+                'HARD':       0.06,
+                'NYAN_CAT':   0.03,
+            }
+            self.secuencia_niveles = ['BABY', 'EASY', 'ENTUSIASTA', 'MEDIUM', 'HARD', 'NYAN_CAT']
+
+
+* Cambio 3 - Se lee levels_config desde el JSON y se reconstruyen umbrales,
+  velocidades y secuencia_niveles dinamicamente ordenando por MIN_SCORE.
+  Esto permite que el .brick defina los niveles sin tocar el runtime.
+
+- ANTES
+            # No existia lectura de DEFINE LEVELS del JSON
+
+- DESPUES
+            self.levels_config = self.datos_juego.get('levels', {})
+            if self.levels_config:
+                for nombre_nv, cfg in self.levels_config.items():
+                    self.umbrales_nivel[nombre_nv]   = cfg.get('min_score', ...)
+                    self.velocidades_nivel[nombre_nv] = cfg.get('speed', 15) / 100.0
+                self.secuencia_niveles = sorted(
+                    self.levels_config.keys(),
+                    key=lambda n: self.levels_config[n].get('min_score', 0)
+                )
+
+
+# runtime.py - ejecutar_evento(), verbo SPAWN objeto POISON
+
+* Cambio 4 - El veneno solo se spawnea si el nivel activo tiene HAS_POISON: TRUE.
+  En BABY (HAS_POISON: FALSE) no aparece ninguna fruta venenosa.
+
+- ANTES
+                        elif objeto == 'POISON':
+                            self.snake_spawn_veneno()
+
+- DESPUES
+                        elif objeto == 'POISON':
+                            cfg_nivel = self.levels_config.get(self.level, {})
+                            if cfg_nivel.get('has_poison', True):
+                                self.snake_spawn_veneno()
+                            # Si has_poison es False no se crea la fruta
+
+
+# runtime.py - ejecutar_evento(), verbo SPAWN objeto CLOUD
+
+* Cambio 5 - Las nubes solo se spawnean si el nivel activo tiene HAS_OBSTACLES: TRUE.
+  En BABY (HAS_OBSTACLES: FALSE) el tablero queda limpio sin nubes.
+
+- ANTES
+                        elif objeto == 'CLOUD':
+                            self.posiciones_nubes.append(...)
+
+- DESPUES
+                        elif objeto == 'CLOUD':
+                            cfg_nivel = self.levels_config.get(self.level, {})
+                            if cfg_nivel.get('has_obstacles', True):
+                                coords = params[0] if params else [0, 0]
+                                self.posiciones_nubes.append((coords[0], coords[1]))
+
+
+# runtime.py - snake_crecer()
+
+* Cambio 6 - Al subir de nivel se ajustan velocidad, titulo de ventana, nubes
+  y escudo segun la configuracion del nivel nuevo. La subida de nivel se evalua
+  en cada crecimiento comparando la puntuacion acumulada contra los umbrales.
+  Solo se puede subir hasta nivel_maximo (el definido en el .brick).
+
+- ANTES
+            # No existia logica de subida de nivel progresiva
+
+- DESPUES
+        idx_maximo = self.secuencia_niveles.index(self.nivel_maximo) ...
+        nivel_nuevo = self.level
+        for nombre_nivel in self.secuencia_niveles[:idx_maximo + 1]:
+            if self.puntuacion >= self.umbrales_nivel[nombre_nivel]:
+                nivel_nuevo = nombre_nivel
+
+        if nivel_nuevo != self.level:
+            self.level = nivel_nuevo
+            self.velocidad_gravedad = self.velocidades_nivel.get(self.level, 0.15)
+            self.root.title('BrickScript - SNAKE  |  Nivel: ' + self.level)
+            self.nivel_flash_timer = 30
+            if self.levels_config:
+                cfg = self.levels_config.get(self.level, {})
+                if cfg.get('has_obstacles', True):
+                    self.posiciones_nubes = [(5,5),(15,15),(5,15),(15,5)]
+                else:
+                    self.posiciones_nubes = []
+                if cfg.get('has_powerup', True):
+                    if self.posicion_escudo is None:
+                        self.snake_spawn_escudo()
+                else:
+                    self.posicion_escudo = None
+
+
+# runtime.py - dibujar(), bloque SNAKE
+
+* Cambio 7 - Se agrega la notificacion visual de subida de nivel.
+  Durante 30 frames (~1.5 segundos) se muestra un banner en el centro del canvas
+  con el nombre del nivel nuevo en el color del nivel y un icono de flecha.
+
+- ANTES
+            # No existia notificacion de subida de nivel
+
+- DESPUES
+            if self.es_remake and self.nivel_flash_timer > 0:
+                self.nivel_flash_timer -= 1
+                if self.nivel_flash_timer > 5:
+                    color_nv = self.colores_nivel.get(self.level, '#FFFFFF')
+                    self.canvas.create_rectangle(0, alto//2-22, ancho, alto//2+22,
+                                                 fill='#050515', outline='')
+                    self.canvas.create_text(..., text=u'\u2b06 NIVEL NUEVO \u2b06',
+                                            fill='#888888', font=('Consolas', 9))
+                    self.canvas.create_text(..., text=self.level,
+                                            fill=color_nv, font=('Consolas', 16, 'bold'))
+
+
+=======================================================================
+  MEJORAS VISUALES
+=======================================================================
+
+# runtime.py - __init__(), bloque GUI (es_remake)
+
+* Mejora 1 - Panel lateral rediseñado con estetica retro-arcade.
+  Fondo oscuro (#07070E), fuente Consolas, separadores con caracteres unicode,
+  etiquetas en violeta neon (#9B3FEE), valores en blanco puro. El subtitulo
+  muestra el tipo de juego. El texto de controles es diferente segun el tipo:
+  SNAKE muestra flechas para moverse; TETRIS muestra mover, rotar y bajar.
+
+* Mejora 2 - Badge de nivel actual en el panel lateral (solo SNAKE).
+  Muestra el nombre del nivel en el color asociado:
+  BABY=#00FF88, ENTUSIASTA=#FF9900, NYAN_CAT=#FF00FF, etc.
+  Se actualiza en tiempo real desde actualizar_marcador().
+
+* Mejora 3 - Preview de siguiente pieza oculto en SNAKE.
+  El canvas de preview y su etiqueta no se crean cuando el juego es SNAKE,
+  eliminando el hueco vacio que quedaba en el panel.
+
+* Mejora 4 - Colores_nivel: diccionario que asigna un color a cada nivel.
+  Usado en el badge del panel, en la notificacion de subida y en Game Over.
+
+- DESPUES
+            self.colores_nivel = {
+                'BABY':       '#00FF88',
+                'EASY':       '#88FF00',
+                'ENTUSIASTA': '#FF9900',
+                'MEDIUM':     '#FFCC00',
+                'HARD':       '#FF4400',
+                'NYAN_CAT':   '#FF00FF',
+            }
+
+
+# runtime.py - dibujar(), borde del canvas
+
+* Mejora 5 - El borde del canvas tiene tres estados visuales:
+  - Normal:           #1A1A3A, grosor 2px (estatico).
+  - Escudo activo:    verde pulsante sincronizado con el halo, grosor 3px.
+  - Modo bomba (TETRIS): arcoiris animado ciclico, grosor 3px.
+
+
+# runtime.py - dibujar(), cuadricula del fondo
+
+* Mejora 6 - En modo remake las celdas vacias muestran una rejilla sutil (#151525)
+  en lugar de un fondo completamente negro, dando profundidad al tablero.
+
+- ANTES
+                    pass  # fondo negro liso
+
+- DESPUES
+                    self.canvas.create_rectangle(x1, y1, x2, y2,
+                                                 fill='', outline='#151525')
+
+
+# runtime.py - dibujar(), comida
+
+* Mejora 7 - La fruta normal pulsa con una onda senoidal (food_pulse_frame).
+  El radio oscila +/-3px cada frame usando math.sin(), creando un efecto de
+  latido organico. Tiene halo oscuro exterior y brillo en esquina superior
+  izquierda para simular volumen.
+
+- ANTES
+                    self.dibujar_celda(x, y, COLOR_FOOD)   # cuadrado rojo fijo
+
+- DESPUES
+                    pulso = math.sin(self.food_pulse_frame * 0.18)
+                    radio_extra = int(pulso * 3)
+                    margen = 3 - radio_extra
+                    self.canvas.create_oval(...)  # halo exterior #880000
+                    self.canvas.create_oval(...)  # circulo principal #FF2222 con borde #FF8888
+                    self.canvas.create_oval(...)  # brillo superior izquierdo #FF9999
+
+
+# runtime.py - dibujar(), frutas venenosas
+
+* Mejora 8 - Las frutas venenosas tienen intensidad de color variable segun su
+  tiempo de vida restante (fraccion_vida). Cuando acaban de aparecer el magenta
+  es brillante; cuando estan proximas a reubicarse el color se oscurece,
+  dando señal visual al jugador sin texto adicional.
+  En modo original (no remake) se mantiene el cuadrado magenta con X.
+
+- ANTES
+                    cv = '#FF00FF' if parpadeo else '#CC00CC'   # color fijo siempre
+
+- DESPUES
+                    brillo = int(180 + 75 * fraccion_vida)
+                    if parpadeo:
+                        cv = '#{:02X}00{:02X}'.format(brillo, brillo // 2)
+                    else:
+                        cv = '#CC00CC'
+
+
+# runtime.py - dibujar_celda_estilo()
+
+* Mejora 9 - Metodo nuevo. Dibuja una celda con borde biselado.
+  Highlight claro (+60 en RGB) en arista superior-izquierda, sombra oscura
+  (-50 en RGB) en inferior-derecha, simulando iluminacion desde arriba-izquierda.
+  Usado por piezas de Tetris, cuerpo de serpiente RECTANGULAR y preview lateral.
+
+- ANTES
+            # Solo existia dibujar_celda() (rectangulo plano)
+
+- DESPUES
+    def dibujar_celda_estilo(self, x, y, color, canvas=None, tam=None):
+        hl = color con +60 en cada canal (highlight)
+        sh = color con -50 en cada canal (sombra)
+        c.create_rectangle(x1, y1, x2, y2, fill=color, outline='')
+        c.create_line(x1, y2, x1, y1, fill=hl, width=2)  # izquierda
+        c.create_line(x1, y1, x2, y1, fill=hl, width=2)  # arriba
+        c.create_line(x2, y1, x2, y2, fill=sh, width=2)  # derecha
+        c.create_line(x1, y2, x2, y2, fill=sh, width=2)  # abajo
+
+
+# runtime.py - mostrar_game_over()
+
+* Mejora 10 - Ventana de Game Over estilizada (Toplevel modal) en lugar del
+  messagebox generico de Tkinter. Muestra titulo en rojo (#FF2222), puntuacion
+  final en blanco con fuente grande, nivel alcanzado en el color del nivel,
+  y boton SALIR en violeta. La ventana es modal, centra sobre la ventana
+  principal y cierra el proceso completo al salir.
+
+- ANTES
+            tkMessageBox.showinfo('Game Over', 'Puntuacion: ' + str(self.puntuacion))
+
+- DESPUES
+            ventana_go = tk.Toplevel(self.root)
+            ventana_go.title('GAME OVER')
+            ventana_go.configure(bg='#07070E')
+            ventana_go.grab_set()  # Modal
+            # Titulo, separador, puntuacion, nivel alcanzado, boton SALIR
+            # El color del nivel usa colores_nivel para coherencia visual.
+
+=======================================================================
+

@@ -1,0 +1,840 @@
+================================================================================
+          BITÁCORA FINAL DE CAMBIOS: PROYECTO BRICKSCRIPT - BRICK TANKS
+================================================================================
+
+Cambios realizados Sara (Actividad 5 - Punto B - Final Boss).
+---------------------------------------------------------------------------------------------------------------------
+
+Se implementó el Punto B de la Actividad 5: Final Boss (Tanque Jefe / Fortaleza).
+Al alcanzar 500 puntos, el juego realiza una transición para enfrentar al jefe final.
+Los cambios garantizan retrocompatibilidad: todos los juegos anteriores (snake, tetris,
+tetris_remake, snake_evolved) siguen siendo compilables y ejecutables sin errores.
+
+=======================================================================
+  RESUMEN DE CAMBIOS - ACTIVIDAD 5, PUNTO B: FINAL BOSS
+=======================================================================
+
+# brick_tanks.brick
+
+* Cambio 1 — Se documenta BOSS_TANK como entidad de gran tamaño (5×5) con
+  ENTITY_ROLE: FINAL_BOSS, diferenciándola semánticamente de los enemigos normales:
+
+- ANTES
+DEFINE SHAPE BOSS_TANK:
+    STATE 1:
+        [1, 1, 1, 1, 1]
+        [1, 1, 1, 1, 1]
+        [1, 1, 0, 1, 1]
+        [1, 1, 1, 1, 1]
+        [1, 1, 1, 1, 1]
+    ENTITY_ROLE: FINAL_BOSS
+    COLOR: #FF00FF
+    HEALTH: 200
+    SPEED: 1
+    FIRE_RATE: 30
+    COLOR_BY_HEALTH: (100, #FF00FF), (66, #FF0088), (33, #FF0000)
+END
+(El boss aparecía en ON START junto con los enemigos normales)
+
+- DESPUÉS
+(Misma definición DEFINE SHAPE, sin cambios en la forma)
+El boss ya NO aparece en ON START.
+Se agrega el evento ON TARGET_SCORE que dispara su spawn:
+
+ON TARGET_SCORE:
+    SPAWN BOSS_TANK AT (14, 1)
+END
+
+* Cambio 2 — Se elimina SPAWN BOSS_TANK del bloque ON START:
+
+- ANTES
+ON START:
+    SPAWN PLAYER_TANK AT (10, 7)
+    SPAWN GRUNT_TANK AT (2, 2)
+    SPAWN GRUNT_TANK AT (18, 2)
+    SPAWN HEAVY_TANK AT (10, 2)
+    SPAWN BOSS_TANK AT (10, 1)
+END
+
+- DESPUÉS
+ON START:
+    SPAWN PLAYER_TANK AT (10, 7)
+    SPAWN GRUNT_TANK AT (2, 2)
+    SPAWN GRUNT_TANK AT (18, 2)
+    SPAWN HEAVY_TANK AT (10, 2)
+END
+
+# tetris_remake.bnf
+
+* Cambio 1 — Se agrega "TARGET_SCORE" como nombre de evento válido en <nombre_evento>:
+
+- ANTES
+<nombre_evento> ::= "START" | "TICK"
+                  | "LINE_CLEAR"
+                  | "EAT_FOOD" | "EAT_POISON" | "EAT_SHIELD" | "COLLISION_WALL" | "COLLISION_SELF"
+                  | "PLAYER_SHOOT" | "ENEMY_SHOOT" | "BULLET_HIT_ENEMY" | "PLAYER_HIT"
+                  | "PICKUP_HAMMER" | "ALL_ENEMIES_DEAD" | "PLAYER_HEALTH_ZERO"
+                  | "KEY_UP" | "KEY_DOWN" | "KEY_LEFT" | "KEY_RIGHT" | "KEY_SPACE"
+
+- DESPUÉS
+<nombre_evento> ::= "START" | "TICK"
+                  | "LINE_CLEAR"
+                  | "EAT_FOOD" | "EAT_POISON" | "EAT_SHIELD" | "COLLISION_WALL" | "COLLISION_SELF"
+                  | "PLAYER_SHOOT" | "ENEMY_SHOOT" | "BULLET_HIT_ENEMY" | "PLAYER_HIT"
+                  | "PICKUP_HAMMER" | "ALL_ENEMIES_DEAD" | "PLAYER_HEALTH_ZERO"
+                  | "KEY_UP" | "KEY_DOWN" | "KEY_LEFT" | "KEY_RIGHT" | "KEY_SPACE"
+                  | "TARGET_SCORE"
+
+  NOTA: No se modificó ninguna regla de TETRIS ni SNAKE. TARGET_SCORE solo tiene
+  efecto en juegos de tipo TANKS; en otros tipos el runtime lo ignora.
+
+* Cambio 2 — Se documenta explícitamente el rol FINAL_BOSS en <rol_entidad>
+  (ya existía; se agrega comentario explicando su semántica de vida múltiple):
+
+- ANTES
+<rol_entidad> ::= "PLAYER" | "ENEMY" | "FINAL_BOSS"
+(sin comentario)
+
+- DESPUÉS
+<rol_entidad> ::= "PLAYER" | "ENEMY" | "FINAL_BOSS"
+# FINAL_BOSS activa la lógica de vida múltiple (HP) en el runtime.
+# A diferencia de ENEMY (muere en 1-3 impactos), el FINAL_BOSS requiere
+# múltiples impactos hasta agotar su atributo HEALTH.
+
+# compiler.py
+
+* Cambio 1 — Se agrega la clave "boss_score_threshold" al AST en Parser.__init__():
+
+- ANTES
+            "entity_color_by_health": {},
+        }
+
+- DESPUÉS
+            "entity_color_by_health": {},
+            "boss_score_threshold": 1000,  # Actividad 5-B: puntos para disparar la fase del boss
+        }
+
+  El valor 1000 es el umbral de puntuación que dispara el evento ON_TARGET_SCORE.
+  RETROCOMPATIBILIDAD: archivos .brick sin ON TARGET_SCORE conservan el campo con
+  valor 1000 pero el runtime nunca lo activa porque el evento no existe en el JSON.
+
+* Cambio 2 — parsear_evento() acepta TARGET_SCORE sin cambios adicionales.
+  La función ya construía genéricamente 'ON_' + <token>, por lo que
+  TARGET_SCORE → ON_TARGET_SCORE funciona de forma automática.
+
+
+# runtime.py 
+
+— Bloque TANKS en __init__()
+
+* Cambio 1 — Se agregan tres variables de estado para la fase del boss:
+
+- ANTES
+            self.tanks_game_over = False
+            self.tanks_player_win = False
+            self.tanks_wave = 1
+            self.tanks_kill_count = 0
+
+- DESPUÉS
+            self.tanks_game_over = False
+            self.tanks_player_win = False
+            self.tanks_wave = 1
+            self.tanks_kill_count = 0
+
+            # Actividad 5-B: Estado de la fase del Final Boss
+            self.boss_score_threshold = self.datos_juego.get('boss_score_threshold', 1000)
+            self.boss_phase_active = False   # True cuando el boss ya fue invocado
+            self.boss_defeated = False       # True cuando el boss muere
+
+  RETROCOMPATIBILIDAD: boss_score_threshold usa get() con default 1000, por lo que
+  JSONs anteriores sin ese campo funcionan sin cambios.
+
+— Bloque GUI TANKS en __init__()
+
+* Cambio 1 — Se agregan etiqueta y barra de vida del boss al panel lateral:
+
+- ANTES
+            self.lbl_wave = tk.Label(...)
+            self.lbl_wave.pack(pady=(0, 12))
+
+            tk.Label(...controles...).pack(...)
+
+- DESPUÉS
+            self.lbl_wave = tk.Label(...)
+            self.lbl_wave.pack(pady=(0, 12))
+
+            tk.Label(self.marco_score, text='BOSS HP', bg=PANEL_BG, fg='#FF00FF',
+                     font=('Courier', 8)).pack()
+            self.lbl_boss_hp = tk.Label(self.marco_score, text='',
+                                        bg=PANEL_BG, fg='#FF44FF',
+                                        font=('Courier', 11, 'bold'))
+            self.lbl_boss_hp.pack(pady=(0, 8))
+
+            self.boss_hp_bar = tk.Canvas(self.marco_score, width=120, height=10,
+                bg='#1A001A', highlightthickness=1, highlightbackground='#440044')
+            self.boss_hp_bar.pack(pady=(0, 12))
+
+  Antes de que el boss llegue, lbl_boss_hp muestra "Falta: Xpts" (cuenta regresiva).
+  Durante la fase boss muestra "X / 200" con barra de color proporcional al HP.
+
+— game_loop() bloque TANKS
+
+* Cambio 1 — Se añade la llamada a tanks_check_boss_transition() cada tick:
+
+- ANTES
+            self.tanks_tick_enemies()
+            self.tanks_tick_bullets()
+            self.tanks_tick_hammer()
+            self.tanks_check_win()
+
+- DESPUÉS
+            self.tanks_tick_enemies()
+            self.tanks_tick_bullets()
+            self.tanks_tick_hammer()
+            self.tanks_check_boss_transition()   # Actividad 5-B
+            self.tanks_check_win()
+
+— tanks_tick_bullets()
+
+* Cambio 1 — Se agrega detección de derrota del boss cuando su HP llega a 0:
+
+- ANTES
+                        if enemy['hp'] <= 0:
+                            enemy['alive'] = False
+                            self.puntuacion += 100 if enemy['is_boss'] else 50
+                            self.actualizar_marcador()
+
+- DESPUÉS
+                        if enemy['hp'] <= 0:
+                            enemy['alive'] = False
+                            self.puntuacion += 100 if enemy['is_boss'] else 50
+                            self.actualizar_marcador()
+                            if enemy['is_boss']:
+                                self.boss_defeated = True   # activa victoria especial
+
+  El boss tiene HEALTH: 200 y cada impacto descuenta 20 HP (DAMAGE_ENEMY 20),
+  por lo que necesita exactamente 10 impactos para ser derrotado.
+
+— nuevo método
+
+* Cambio 1 — Se crea el método que monitorea la puntuación y dispara la transición:
+
+- ANTES
+(no existía)
+
+- DESPUÉS
+    def tanks_check_boss_transition(self):
+        if self.boss_phase_active:
+            return
+        if self.puntuacion >= self.boss_score_threshold:
+            self.boss_phase_active = True
+            for enemy in self.enemies:
+                if not enemy['is_boss']:
+                    enemy['alive'] = False          # limpiar oleada normal
+            self.ejecutar_evento('ON_TARGET_SCORE') # invocar al boss
+            if hasattr(self, 'lbl_wave'):
+                self.lbl_wave.config(text=u'BOSS', fg='#FF00FF')
+            if hasattr(self, 'lbl_enemies'):
+                self.lbl_enemies.config(text='1', fg='#FF00FF')
+
+  RETROCOMPATIBILIDAD: si el JSON no tiene ON_TARGET_SCORE, ejecutar_evento()
+  no encuentra la clave y regresa sin hacer nada.
+
+— ejecutar_evento(), bloque SPAWN de TANKS
+
+* Cambio 1 — Se agrega creación dinámica del boss cuando no existe entrada previa:
+
+- ANTES
+                    elif roles.get(nombre) in ('ENEMY', 'FINAL_BOSS'):
+                        for enemy in self.enemies:
+                            if enemy['shape'] == nombre and enemy['pos'] == [0, 0]:
+                                enemy['pos'] = list(pos)
+                                break
+
+- DESPUÉS
+                    elif roles.get(nombre) in ('ENEMY', 'FINAL_BOSS'):
+                        colocado = False
+                        for enemy in self.enemies:
+                            if enemy['shape'] == nombre and enemy['pos'] == [0, 0]:
+                                enemy['pos'] = list(pos)
+                                enemy['alive'] = True
+                                colocado = True
+                                break
+                        if not colocado:
+                            # Boss no estaba en ON START: se crea dinámicamente
+                            self.enemies.append({
+                                'shape': nombre, 'pos': list(pos),
+                                'hp': healths.get(nombre, 200),
+                                'hp_max': healths.get(nombre, 200),
+                                'speed': speeds.get(nombre, 1),
+                                'speed_counter': 0,
+                                'fire_rate': frates.get(nombre, 30),
+                                'fire_counter': random.randint(0, frates.get(nombre, 30)),
+                                'color': self.datos_juego.get('shape_colors', {}).get(nombre, '#FF00FF'),
+                                'cbh': cbh_map.get(nombre, {}),
+                                'is_boss': (roles.get(nombre) == 'FINAL_BOSS'),
+                                'alive': True,
+                            })
+
+— dibujar(), bloque TANKS
+
+* Cambio 1 — Se añade borde y banner de alerta cuando boss_phase_active es True:
+
+- ANTES
+            # ── Banner de oleada (esquina superior derecha del canvas) ──
+
+- DESPUÉS
+            if getattr(self, 'boss_phase_active', False):
+                self.canvas.create_rectangle(
+                    0, 0, self.ancho_canvas - 1, self.alto_canvas - 1,
+                    outline='#FF00FF', width=4
+                )
+                self.canvas.create_text(
+                    self.ancho_canvas // 2, 20,
+                    text=u'!! FINAL BOSS !!', fill='#FF00FF',
+                    font=('Courier', max(10, ts // 2), 'bold')
+                )
+            # ── Banner de oleada (esquina superior derecha del canvas) ──
+
+* Cambio 2 — Se actualiza la etiqueta y barra de HP del boss en cada frame:
+
+- ANTES
+            if hasattr(self, 'lbl_enemies'):
+                vivos = sum(1 for e in self.enemies if e['alive'])
+                self.lbl_enemies.config(text=str(vivos))
+
+- DESPUÉS
+            if hasattr(self, 'lbl_enemies'):
+                vivos = sum(1 for e in self.enemies if e['alive'])
+                self.lbl_enemies.config(text=str(vivos))
+
+            if hasattr(self, 'lbl_boss_hp') and hasattr(self, 'boss_phase_active'):
+                boss = next((e for e in self.enemies if e['is_boss'] and e['alive']), None)
+                if self.boss_phase_active and boss is not None:
+                    self.lbl_boss_hp.config(text=str(max(0, boss['hp'])) + ' / ' + str(boss['hp_max']))
+                    if hasattr(self, 'boss_hp_bar'):
+                        self.boss_hp_bar.delete('all')
+                        pct_boss = max(0.0, boss['hp'] / float(max(boss['hp_max'], 1)))
+                        bar_w = int(120 * pct_boss)
+                        col_bar = '#FF00FF' if pct_boss > 0.66 else ('#FF0088' if pct_boss > 0.33 else '#FF2222')
+                        if bar_w > 0:
+                            self.boss_hp_bar.create_rectangle(0, 0, bar_w, 10, fill=col_bar, outline='')
+                elif not self.boss_phase_active:
+                    restante = max(0, self.boss_score_threshold - self.puntuacion)
+                    if restante > 0:
+                        self.lbl_boss_hp.config(text='Falta: ' + str(restante) + 'pts', fg='#888888')
+                    else:
+                        self.lbl_boss_hp.config(text='LLEGANDO...', fg='#FF88FF')
+
+— tanks_check_win() y mostrar_victoria_tanks()
+
+* Cambio 1 — tanks_check_win() detecta boss_defeated y llama a la victoria especial:
+
+- ANTES
+        vivos = [e for e in self.enemies if e['alive']]
+        if len(vivos) == 0 and len(self.enemies) > 0:
+            self.tanks_wave += 1
+            ...respawn oleada...
+
+- DESPUÉS
+        vivos = [e for e in self.enemies if e['alive']]
+
+        if getattr(self, 'boss_defeated', False):
+            self.mostrar_victoria_tanks()   # victoria especial boss
+            return
+
+        if len(vivos) == 0 and len(self.enemies) > 0:
+            if getattr(self, 'boss_phase_active', False):
+                self.mostrar_victoria_tanks()
+                return
+            self.tanks_wave += 1
+            ...respawn oleada solo si NO es fase boss...
+
+* Cambio 2 — mostrar_victoria_tanks() muestra mensaje diferenciado según boss_defeated:
+
+- ANTES
+        tkMessageBox.showinfo(
+            'BRICK TANKS — VICTORIA',
+            '¡Todos los enemigos han sido eliminados!\n'
+            'Puntuación final: ' + str(self.puntuacion)
+        )
+
+- DESPUÉS
+        if getattr(self, 'boss_defeated', False):
+            msg = (u'\u2605 ¡FINAL BOSS DERROTADO! \u2605\n\n'
+                   '¡Has destruido la Fortaleza Enemiga!\n'
+                   'Puntuación final: ' + str(self.puntuacion) + '\n'
+                   'Oleada alcanzada: ' + str(self.tanks_wave))
+            titulo = 'BRICK TANKS — JEFE FINAL DERROTADO'
+        else:
+            msg = ('¡Todos los enemigos han sido eliminados!\n'
+                   'Puntuación final: ' + str(self.puntuacion))
+            titulo = 'BRICK TANKS — VICTORIA'
+        tkMessageBox.showinfo(titulo, msg)
+
+# brick_tanks.json
+
+* Cambio 1 — Se elimina BOSS_TANK del evento ON_START:
+
+- ANTES
+    "ON_START": [
+      { "accion": "SPAWN", "objeto": "PLAYER_TANK", "params": [[10, 7]] },
+      { "accion": "SPAWN", "objeto": "GRUNT_TANK",  "params": [[2, 2]]  },
+      { "accion": "SPAWN", "objeto": "GRUNT_TANK",  "params": [[18, 2]] },
+      { "accion": "SPAWN", "objeto": "HEAVY_TANK",  "params": [[10, 2]] },
+      { "accion": "SPAWN", "objeto": "BOSS_TANK",   "params": [[10, 1]] }
+    ]
+
+- DESPUÉS
+    "ON_START": [
+      { "accion": "SPAWN", "objeto": "PLAYER_TANK", "params": [[10, 7]] },
+      { "accion": "SPAWN", "objeto": "GRUNT_TANK",  "params": [[2, 2]]  },
+      { "accion": "SPAWN", "objeto": "GRUNT_TANK",  "params": [[18, 2]] },
+      { "accion": "SPAWN", "objeto": "HEAVY_TANK",  "params": [[10, 2]] }
+    ]
+
+* Cambio 2 — Se agrega el evento ON_TARGET_SCORE:
+
+- ANTES
+(no existía)
+
+- DESPUÉS
+    "ON_TARGET_SCORE": [
+      { "accion": "SPAWN", "objeto": "BOSS_TANK", "params": [[14, 1]] }
+    ]
+
+* Cambio 3 — Se agrega el campo boss_score_threshold:
+
+- ANTES
+(no existía)
+
+- DESPUÉS
+    "boss_score_threshold": 1000
+
+==============================================
+M. Corrección de encoding (SyntaxError Python 2)
+==============================================
+
+# runtime.py 
+
+— cabecera del archivo y strings unicode
+
+* Problema detectado — El archivo tenía la declaración de encoding comentada
+  doble (# # -*- coding: utf-8 -*-), lo que Python 2 no reconoce como válida.
+  Además, varios strings u'' contenían caracteres UTF-8 literales (¡, ó, —, ⚠)
+  que Python 2 rechaza con SyntaxError aunque el archivo tenga encoding declarado.
+
+* Cambio 1 — Se corrige la declaración de encoding en la primera línea:
+
+- ANTES
+# # -*- coding: utf-8 -*-
+
+- DESPUÉS
+# -*- coding: utf-8 -*-
+
+* Cambio 2 — Se reemplazan caracteres UTF-8 literales en strings u'' por
+  sus equivalentes de escape unicode:
+
+- ANTES
+  u'\u2605 ¡FINAL BOSS DERROTADO! \u2605\n\n'
+  '¡Has destruido la Fortaleza Enemiga!\n'
+  'Puntuación final: '
+  'BRICK TANKS — JEFE FINAL DERROTADO'
+  u'⚠ NYAN CAT ⚠'
+  u'\u26A1 TRIPLE\n¡BOMBA! \u26A1'
+
+- DESPUÉS
+  u'\u2605 \u00a1FINAL BOSS DERROTADO! \u2605\n\n'
+  u'\u00a1Has destruido la Fortaleza Enemiga!\n'
+  u'Puntuaci\u00f3n final: '
+  u'BRICK TANKS \u2014 JEFE FINAL DERROTADO'
+  u'\u26a0 NYAN CAT \u26a0'
+  u'\u26A1 TRIPLE\n\u00a1BOMBA! \u26A1'
+
+  Tabla de equivalencias usadas:
+    ¡  →  \u00a1
+    ó  →  \u00f3
+    —  →  \u2014
+    ⚠  →  \u26a0
+
+==============================================
+N. Corrección de aparición prematura del boss y victoria incorrecta
+==============================================
+
+# runtime.py — múltiples secciones
+
+Se identificaron y corrigieron cuatro bugs relacionados con el comportamiento
+del boss:
+
+---------------------------------------------------------------------------
+BUG 1 — El boss aparecía desde el inicio del juego
+---------------------------------------------------------------------------
+CAUSA: en __init__(), self.enemies se inicializaba con TODOS los shapes
+que tuvieran role en ('ENEMY', 'FINAL_BOSS'). El boss quedaba en self.enemies
+con pos=[0,0] y alive=True antes de que ON_START corriera.
+
+* Cambio — Se filtra por role == 'ENEMY' únicamente:
+
+- ANTES
+            for shape_name, role in roles.items():
+                if role in ('ENEMY', 'FINAL_BOSS'):
+                    self.enemies.append({ ..., 'alive': True })
+
+- DESPUÉS
+            for shape_name, role in roles.items():
+                if role == 'ENEMY':           # ← solo ENEMY, no FINAL_BOSS
+                    self.enemies.append({ ..., 'alive': False })
+
+  Adicionalmente, las entradas pre-creadas parten con alive=False para no
+  moverse ni disparar antes de que ON_START haga SPAWN y las posicione.
+
+---------------------------------------------------------------------------
+BUG 2 — El boss se respawneaba en cada nueva oleada
+---------------------------------------------------------------------------
+CAUSA: tanks_enemy_templates se construía iterando self.enemies. Si el boss
+llegaba a estar en la lista (bug 1), quedaba en las plantillas y cada nueva
+oleada lo incluía.
+
+* Cambio — Guardia explícita en la construcción de plantillas:
+
+- ANTES
+            for e in self.enemies:
+                self.tanks_enemy_templates.append({ ... })
+
+- DESPUÉS
+            for e in self.enemies:
+                if not e['is_boss']:     # ← nunca plantilla del boss
+                    self.tanks_enemy_templates.append({ ... })
+
+---------------------------------------------------------------------------
+BUG 3 — Victoria especial se activaba sin llegar a 1000 puntos
+---------------------------------------------------------------------------
+CAUSA: boss_defeated = True se activaba al matar cualquier entidad con
+is_boss=True, sin verificar si boss_phase_active era True. Como el boss
+podía existir desde el inicio (bug 1), matarlo antes de 1000 pts disparaba
+la pantalla de victoria especial.
+
+* Cambio — Guardia sobre boss_phase_active:
+
+- ANTES
+                            if enemy['is_boss']:
+                                self.boss_defeated = True
+
+- DESPUÉS
+                            if enemy['is_boss'] and self.boss_phase_active:
+                                self.boss_defeated = True
+
+---------------------------------------------------------------------------
+BUG 4 — Respawn prematuro de oleada antes de que ON_START corriera
+---------------------------------------------------------------------------
+CAUSA: tanks_check_win() evaluaba `len(vivos) == 0 and len(self.enemies) > 0`.
+Con las entradas pre-creadas en alive=False (fix del bug 1), esta condición
+era True desde el primer tick y disparaba una nueva oleada antes de que
+ON_START posicionara a los enemigos.
+
+* Cambio — Se agrega el flag tanks_wave_spawned:
+
+- ANTES
+            self.boss_score_threshold = ...
+            self.boss_phase_active = False
+            self.boss_defeated = False
+
+- DESPUÉS
+            self.boss_score_threshold = ...
+            self.boss_phase_active = False
+            self.boss_defeated = False
+            self.tanks_wave_spawned = False   # ← nuevo flag
+
+  En game_loop se activa en cuanto hay al menos un enemigo vivo:
+
+- ANTES
+            self.tanks_tick_enemies()
+
+- DESPUÉS
+            if not self.tanks_wave_spawned and any(e['alive'] for e in self.enemies):
+                self.tanks_wave_spawned = True
+            self.tanks_tick_enemies()
+
+  En tanks_check_win() se usa el flag en lugar de len(self.enemies) > 0:
+
+- ANTES
+        if len(vivos) == 0 and len(self.enemies) > 0:
+
+- DESPUÉS
+        if len(vivos) == 0 and self.tanks_wave_spawned:
+            self.tanks_wave_spawned = False   # reset para la siguiente oleada
+
+  En tanks_check_boss_transition() también se resetea al activar la fase boss,
+  para no disparar un respawn mientras el boss entra en escena:
+
+- DESPUÉS (dentro del bloque de transición)
+            self.boss_phase_active = True
+            self.tanks_wave_spawned = False   # ← evita respawn prematuro
+            for enemy in self.enemies:
+                if not enemy['is_boss']:
+                    enemy['alive'] = False
+
+* Cambio adicional — El contador del panel lateral ahora muestra solo
+  enemigos vivos (no las entradas pre-creadas con alive=False):
+
+- ANTES
+                self.lbl_enemies.config(text=str(len(self.enemies)))
+
+- DESPUÉS
+                vivos_init = sum(1 for e in self.enemies if e['alive'])
+                self.lbl_enemies.config(text=str(vivos_init))
+
+Cambios realizados Anderson (Punto C)
+brick_tanks.brick
+
+Cambio 1 — Se añade la entidad WALL_BLOCK con ENTITY_ROLE: WALL:
+
+
+ANTES
+(no existía)
+DESPUÉS
+DEFINE SHAPE WALL_BLOCK:
+STATE 1:
+[1, 1]
+[1, 1]
+ENTITY_ROLE: WALL
+COLOR: #888866
+HEALTH: 2
+END
+Bloque 2x2 con 2 HP. Se destruye con 2 impactos de cualquier proyectil.
+
+
+Cambio 2 — ON START: jugador reubicado en la parte inferior y 6 muros añadidos:
+
+
+ANTES
+ON START:
+SPAWN PLAYER_TANK AT (10, 7)
+SPAWN GRUNT_TANK AT (2, 2)
+SPAWN GRUNT_TANK AT (18, 2)
+SPAWN HEAVY_TANK AT (10, 2)
+END
+DESPUÉS
+ON START:
+SPAWN PLAYER_TANK AT (14, 17)
+SPAWN GRUNT_TANK AT (4, 2)
+SPAWN GRUNT_TANK AT (24, 2)
+SPAWN HEAVY_TANK AT (14, 2)
+SPAWN WALL_BLOCK AT (7, 6)
+SPAWN WALL_BLOCK AT (14, 6)
+SPAWN WALL_BLOCK AT (21, 6)
+SPAWN WALL_BLOCK AT (7, 13)
+SPAWN WALL_BLOCK AT (14, 13)
+SPAWN WALL_BLOCK AT (21, 13)
+END
+
+
+Cambio 3 — ON PLAYER_SHOOT y ON KEY_SPACE usan dirección real en lugar de aleatoria:
+
+
+ANTES
+ON PLAYER_SHOOT:
+SPAWN BULLET AT RANDOM
+END
+
+ON KEY_SPACE:
+SPAWN BULLET AT RANDOM
+END
+
+DESPUÉS
+ON PLAYER_SHOOT:
+SPAWN BULLET AT PLAYER_DIR
+END
+
+ON KEY_SPACE:
+SPAWN BULLET AT PLAYER_DIR
+END
+
+Cambio 4 — Se añaden dos eventos nuevos:
+
+
+ANTES
+(no existían)
+DESPUÉS
+ON BULLET_HIT_WALL:
+DAMAGE_WALL 1
+END
+
+ON BULLET_HIT_BOSS:
+DAMAGE_ENEMY 20
+INCREASE_SCORE 10
+END
+brick_tanks.json
+
+Cambio 1 — Se registra WALL_BLOCK en todos los mapas de configuración:
+
+
+DESPUÉS (extracto)
+"entity_roles":  { ..., "WALL_BLOCK": "WALL" }
+"entity_health": { ..., "WALL_BLOCK": 2 }
+"entity_speed":  { ..., "WALL_BLOCK": 0 }
+"shape_colors":  { ..., "WALL_BLOCK": "#888866" }
+"shapes":        { ..., "WALL_BLOCK": [[[1,1],[1,1]]] }
+"entity_color_by_health": {
+...,
+"WALL_BLOCK": { "50": "#555544", "100": "#888866" }
+}
+
+
+Cambio 2 — ON_START actualizado con jugador en y=17 y 6 muros en posiciones
+estratégicas (filas y=6 y y=13).
+Cambio 3 — Se añaden los eventos ON_BULLET_HIT_WALL y ON_BULLET_HIT_BOSS.
+Cambio 4 — ON_KEY_SPACE y ON_PLAYER_SHOOT usan PLAYER_DIR como parámetro.
+
+runtime.py
+— init() bloque TANKS
+
+Cambio 1 — Se inicializa self.walls = [] después de self.bullets = []:
+
+
+ANTES
+self.bullets = []
+DESPUÉS
+self.bullets = []
+# Actividad 6: Muros destructibles
+self.walls = []
+
+— ejecutar_evento() bloque SPAWN de TANKS
+
+Cambio 1 — Se maneja SPAWN BULLET AT PLAYER_DIR:
+
+
+ANTES
+pos = params[0] if params and params[0] != 'RANDOM' else [...]
+DESPUÉS
+pos = params[0] if params and params[0] not in ('RANDOM', 'PLAYER_DIR') else [...]
+              if nombre == 'BULLET':
+                  self.tanks_disparar_jugador()
+                  continue
+
+
+
+Cambio 2 — Se maneja SPAWN de entidades con ENTITY_ROLE: WALL:
+
+
+ANTES
+(las entidades con rol desconocido se ignoraban silenciosamente)
+DESPUÉS
+if roles.get(nombre) == 'WALL':
+self.walls.append({
+'pos':    list(pos),
+'hp':     healths.get(nombre, 2),
+'hp_max': healths.get(nombre, 2),
+'color':  self.datos_juego.get('shape_colors', {}).get(nombre, '#888866'),
+'cbh':    cbh_map.get(nombre, {}),
+})
+continue
+
+— tanks_tick_bullets() — método completamente reescrito
+
+Cambio 1 — Sistema de colisiones en capas (orden de prioridad):
+
+
+ANTES
+Solo verificaba: bala jugador → enemigo, bala enemigo → jugador.
+No conocía muros. No diferenciaba boss de enemigo normal.
+DESPUÉS
+
+Borde del mapa          → bala eliminada.
+Muro (cualquier bala)   → muro['hp'] -= 1; bala eliminada.
+Al final del tick se purgan muros con hp <= 0.
+Bala jugador → enemigo  → enemy['hp'] -= 20; si hp<=0: muere (+50 pts).
+Bala jugador → boss     → boss['hp'] -= 20; si hp<=0: boss_defeated (+100 pts).
+Bala enemigo → jugador  → player_hp -= 10; si hp<=0: GAME OVER.
+
+Chequeo de muro cubre las 4 celdas del bloque 2x2:
+ANTES
+for muro in self.walls:
+if muro['pos'] == [bx, by]:   # solo 1 celda, bug
+DESPUÉS
+for muro in self.walls:
+mx, my = muro['pos']
+if mx <= bx <= mx+1 and my <= by <= my+1:   # las 4 celdas
+Al final del método:
+self.walls = [m for m in self.walls if m['hp'] > 0]
+
+— tanks_mover_jugador()
+
+Cambio 1 — El jugador no puede entrar en una celda ocupada por un muro:
+
+
+ANTES
+if 0 <= nx < self.ancho and 0 <= ny < self.alto:
+self.player_pos = [nx, ny]
+DESPUÉS
+def _en_muro_jugador(cx, cy, walls):
+for m in walls:
+mx, my = m['pos']
+if mx <= cx <= mx+1 and my <= cy <= my+1:
+return True
+return False
+pared_bloquea = _en_muro_jugador(nx, ny, self.walls)
+if 0 <= nx < self.ancho and 0 <= ny < self.alto and not pared_bloquea:
+self.player_pos = [nx, ny]
+
+— tanks_tick_enemies()
+
+Cambio 1 — Los enemigos no pueden moverse hacia una celda ocupada por un muro:
+
+
+ANTES
+if 0 <= nx < self.ancho and 0 <= ny < self.alto:
+enemy['pos'] = [nx, ny]
+DESPUÉS
+def _en_muro(cx, cy, walls):
+for m in walls:
+mx, my = m['pos']
+if mx <= cx <= mx+1 and my <= cy <= my+1:
+return True
+return False
+pared = _en_muro(nx, ny, self.walls)
+if 0 <= nx < self.ancho and 0 <= ny < self.alto and not pared:
+enemy['pos'] = [nx, ny]
+
+— dibujar() bloque TANKS
+
+Cambio 1 — Se dibuja cada muro antes del bloque de enemigos:
+
+
+ANTES
+# ── Enemigos ──
+DESPUÉS
+# ── Muros destructibles ──
+for muro in self.walls:
+mx, my = muro['pos']
+self.canvas.create_rectangle(mxts, myts, mxts+ts2, myts+ts2, ...)
+self.canvas.create_line(...)   # línea horizontal ladrillo
+self.canvas.create_line(...)   # línea vertical ladrillo
+if muro['hp'] < muro['hp_max']:
+self.canvas.create_line(...)   # grietas
+# ── Enemigos ──
+
+
+Cambio 2 — El HUD muestra conteo de muros restantes junto a enemigos vivos:
+
+
+ANTES
+self.lbl_enemies.config(text=str(vivos))
+DESPUÉS
+muros_vivos = len(self.walls)
+texto_enemies = str(vivos)
+if muros_vivos > 0:
+texto_enemies += u'  \u2588' + str(muros_vivos)
+self.lbl_enemies.config(text=texto_enemies)
+
+— tanks_check_win()
+
+Cambio 1 — Se regeneran todos los muros al iniciar una oleada nueva:
+
+
+ANTES
+self.player_hp = min(self.player_hp_max, self.player_hp + 25)
+DESPUÉS
+for muro in self.walls:
+muro['hp'] = muro['hp_max']
+self.player_hp = min(self.player_hp_max, self.player_hp + 25)
