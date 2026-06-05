@@ -1,0 +1,212 @@
+# -*- coding: utf-8 -*-
+# Cambios  (Actividad 3 - Punto B):
+#   - Se agregan 3 nuevas figuras: O_PIECE, S_PIECE, Z_PIECE
+#   - Cada figura ahora tiene un atributo COLOR (color hexadecimal)
+#   - Cada figura ahora tiene un atributo CHANCE (peso de probabilidad de aparicion)
+#   - Las figuras originales (I, L, T) conservan sus rotaciones y se les asigna COLOR y CHANCE
+
+# Cambios  (Actividad 3 - Punto C):
+#   - 
+
+GAME_TYPE TETRIS
+
+GAME_GRID (10, 20)
+
+# PIEZAS ORIGINALES (conservadas; ahora con atributos COLOR y CHANCE)
+
+DEFINE SHAPE I_PIECE:
+  STATE 1:
+    [0, 1, 0, 0]
+    [0, 1, 0, 0]
+    [0, 1, 0, 0]
+    [0, 1, 0, 0]
+  STATE 2:
+    [0, 0, 0, 0]
+    [1, 1, 1, 1]
+    [0, 0, 0, 0]
+    [0, 0, 0, 0]
+  STATE 3:
+    [0, 1, 0, 0]
+    [0, 1, 0, 0]
+    [0, 1, 0, 0]
+    [0, 1, 0, 0]
+  STATE 4:
+    [0, 0, 0, 0]
+    [1, 1, 1, 1]
+    [0, 0, 0, 0]
+    [0, 0, 0, 0]
+  COLOR: #00FFFF
+  CHANCE: 15
+END
+
+DEFINE SHAPE L_PIECE:
+  STATE 1:
+    [0, 1, 0]
+    [0, 1, 0]
+    [0, 1, 1]
+  STATE 2:
+    [0, 0, 0]
+    [1, 1, 1]
+    [1, 0, 0]
+  STATE 3:
+    [1, 1, 0]
+    [0, 1, 0]
+    [0, 1, 0]
+  STATE 4:
+    [0, 0, 1]
+    [1, 1, 1]
+    [0, 0, 0]
+  COLOR: #FF8800
+  CHANCE: 15
+END
+
+DEFINE SHAPE T_PIECE:
+  STATE 1:
+    [0, 1, 0]
+    [1, 1, 1]
+    [0, 0, 0]
+  STATE 2:
+    [0, 1, 0]
+    [0, 1, 1]
+    [0, 1, 0]
+  STATE 3:
+    [0, 0, 0]
+    [1, 1, 1]
+    [0, 1, 0]
+  STATE 4:
+    [0, 1, 0]
+    [1, 1, 0]
+    [0, 1, 0]
+  COLOR: #AA00FF
+  CHANCE: 15
+END
+
+# NUEVAS FIGURAS
+
+# Pieza O: cuadrado 2x2. No cambia al rotar (todos los estados son identicos).
+DEFINE SHAPE O_PIECE:
+  STATE 1:
+    [1, 1]
+    [1, 1]
+  STATE 2:
+    [1, 1]
+    [1, 1]
+  STATE 3:
+    [1, 1]
+    [1, 1]
+  STATE 4:
+    [1, 1]
+    [1, 1]
+  COLOR: #FFFF00
+  CHANCE: 20
+END
+
+# Pieza S: forma de S con 4 rotaciones geometricamente correctas.
+DEFINE SHAPE S_PIECE:
+  STATE 1:
+    [0, 1, 1]
+    [1, 1, 0]
+    [0, 0, 0]
+  STATE 2:
+    [1, 0, 0]
+    [1, 1, 0]
+    [0, 1, 0]
+  STATE 3:
+    [0, 0, 0]
+    [0, 1, 1]
+    [1, 1, 0]
+  STATE 4:
+    [0, 1, 0]
+    [0, 1, 1]
+    [0, 0, 1]
+  COLOR: #00FF44
+  CHANCE: 17
+END
+
+# Pieza Z: forma de Z con 4 rotaciones geometricamente correctas.
+DEFINE SHAPE Z_PIECE:
+  STATE 1:
+    [1, 1, 0]
+    [0, 1, 1]
+    [0, 0, 0]
+  STATE 2:
+    [0, 0, 1]
+    [0, 1, 1]
+    [0, 1, 0]
+  STATE 3:
+    [0, 0, 0]
+    [1, 1, 0]
+    [0, 1, 1]
+  STATE 4:
+    [0, 1, 0]
+    [1, 1, 0]
+    [1, 0, 0]
+  COLOR: #FF2244
+  CHANCE: 18
+END
+
+# POWER-UPS
+
+# PowerUp DOUBLE_CLEAR: aparece cuando se eliminan exactamente 2 filas simultaneas.
+# Forma: rectangulo 3x2. No tiene rotaciones especiales (solo 1 estado).
+DEFINE POWERUP DOUBLE_CLEAR_PU:
+  TRIGGER: LINE_CLEAR_EXACT 2
+  STATE 1:
+    [1, 1, 1]
+    [1, 1, 1]
+  COLOR: #FF00FF
+  CHANCE: 100
+END
+
+# PowerUp TRIPLE_CLEAR: aparece cuando se eliminan 3 o mas filas simultaneas.
+# Forma: rectangulo 1x2. Si rota 10+ veces mientras cae, activa modo BOMB:
+# elimina todas las filas donde quedaron sus celdas y suma puntaje extra.
+DEFINE POWERUP TRIPLE_CLEAR_PU:
+  TRIGGER: LINE_CLEAR_MIN 3
+  STATE 1:
+    [1, 0]
+    [1, 0]
+  STATE 2:
+    [1, 1]
+    [0, 0]
+  COLOR: #FFFFFF
+  CHANCE: 100
+END
+
+# PowerUp LINE_PURGE_PU: se activa cada 8 lineas eliminadas acumuladas.
+# Efecto: elimina silenciosamente las dos ultimas filas del tablero
+# sin otorgar puntaje. Es un "reset suave" del fondo del tablero.
+DEFINE POWERUP LINE_PURGE_PU:
+  TRIGGER: LINE_CUMULATIVE 8
+  STATE 1:
+    [0]
+  COLOR: #888888
+  CHANCE: 100
+END
+
+# LOGICA Y REGLAS
+
+ON START:
+  SPAWN RANDOM_SHAPE
+END
+
+ON TICK:
+  MOVE CURRENT_PIECE DOWN
+END
+
+ON LINE_CLEAR:
+  INCREASE_SCORE 100
+END
+
+ON KEY_LEFT:
+  MOVE CURRENT_PIECE LEFT
+END
+ON KEY_RIGHT:
+  MOVE CURRENT_PIECE RIGHT
+END
+ON KEY_DOWN:
+  MOVE CURRENT_PIECE DOWN
+END
+ON KEY_UP:
+  ROTATE CURRENT_PIECE
+END
