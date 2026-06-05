@@ -1,0 +1,170 @@
+# brick_tanks.brick
+
+GAME_TYPE TANKS
+GAME_GRID (30, 20)
+
+# ──────────────────────────────────────────────
+# ENTIDADES: Jugador
+# ──────────────────────────────────────────────
+DEFINE SHAPE PLAYER_TANK:
+    STATE 1:
+        [0, 1, 0]
+        [1, 1, 1]
+        [0, 1, 0]
+    ENTITY_ROLE: PLAYER
+    COLOR: #00FFFF
+    HEALTH: 100
+    SPEED: 3
+END
+
+# ──────────────────────────────────────────────
+# ENTIDADES: Enemigos básicos
+# ──────────────────────────────────────────────
+DEFINE SHAPE GRUNT_TANK:
+    STATE 1:
+        [1, 0, 1]
+        [1, 1, 1]
+        [0, 1, 0]
+    ENTITY_ROLE: ENEMY
+    COLOR: #FF4444
+    HEALTH: 30
+    SPEED: 2
+    FIRE_RATE: 80
+    COLOR_BY_HEALTH: (100, #FF4444), (50, #FF8800), (25, #FFFF00)
+END
+
+DEFINE SHAPE HEAVY_TANK:
+    STATE 1:
+        [1, 1, 1]
+        [1, 1, 1]
+        [1, 1, 1]
+    ENTITY_ROLE: ENEMY
+    COLOR: #AA2222
+    HEALTH: 60
+    SPEED: 1
+    FIRE_RATE: 50
+    COLOR_BY_HEALTH: (100, #AA2222), (50, #FF6600), (25, #FF0000)
+END
+
+# ──────────────────────────────────────────────
+# ENTIDAD: Final Boss — Gran Fortaleza Blindada
+# ──────────────────────────────────────────────
+DEFINE SHAPE BOSS_TANK:
+    STATE 1:
+        [1, 1, 1, 1, 1]
+        [1, 1, 1, 1, 1]
+        [1, 1, 0, 1, 1]
+        [1, 1, 1, 1, 1]
+        [1, 1, 1, 1, 1]
+    ENTITY_ROLE: FINAL_BOSS
+    COLOR: #FF00FF
+    HEALTH: 200
+    SPEED: 1
+    FIRE_RATE: 30
+    COLOR_BY_HEALTH: (100, #FF00FF), (66, #FF0088), (33, #FF0000)
+END
+
+# ──────────────────────────────────────────────
+# ENTIDAD: Bloque de muro destructible
+# Los muros bloquean proyectiles y tanques.
+# Se destruyen al recibir suficiente daño.
+# ──────────────────────────────────────────────
+DEFINE SHAPE WALL_BLOCK:
+    STATE 1:
+        [1, 1]
+        [1, 1]
+    ENTITY_ROLE: WALL
+    COLOR: #888866
+    HEALTH: 2
+END
+
+# ──────────────────────────────────────────────
+# POWER-UP: Martillo (recupera vida)
+# ──────────────────────────────────────────────
+DEFINE POWERUP HAMMER_PU:
+    COLOR: #FFDD00
+    CHANCE: 15
+END
+
+# ──────────────────────────────────────────────
+# EVENTOS
+# ──────────────────────────────────────────────
+
+ON START:
+    SPAWN PLAYER_TANK AT (14, 17)
+    SPAWN GRUNT_TANK AT (4, 2)
+    SPAWN GRUNT_TANK AT (24, 2)
+    SPAWN HEAVY_TANK AT (14, 2)
+    SPAWN WALL_BLOCK AT (7, 6)
+    SPAWN WALL_BLOCK AT (14, 6)
+    SPAWN WALL_BLOCK AT (21, 6)
+    SPAWN WALL_BLOCK AT (7, 13)
+    SPAWN WALL_BLOCK AT (14, 13)
+    SPAWN WALL_BLOCK AT (21, 13)
+END
+
+ON TARGET_SCORE:
+    SPAWN BOSS_TANK AT (14, 1)
+END
+
+ON TICK:
+    MOVE PLAYER_TANK FORWARD
+END
+
+ON PLAYER_SHOOT:
+    SPAWN BULLET AT PLAYER_DIR
+END
+
+ON ENEMY_SHOOT:
+    DAMAGE_PLAYER 10
+END
+
+ON BULLET_HIT_WALL:
+    DAMAGE_WALL 1
+END
+
+ON BULLET_HIT_ENEMY:
+    DAMAGE_ENEMY 20
+    INCREASE_SCORE 50
+END
+
+ON BULLET_HIT_BOSS:
+    DAMAGE_ENEMY 20
+    INCREASE_SCORE 10
+END
+
+ON PLAYER_HIT:
+    DAMAGE_PLAYER 10
+END
+
+ON PICKUP_HAMMER:
+    HEAL_PLAYER 25
+END
+
+ON ALL_ENEMIES_DEAD:
+    PLAYER_WIN
+END
+
+ON PLAYER_HEALTH_ZERO:
+    GAME_OVER
+END
+
+ON KEY_UP:
+    SET_DIRECTION UP
+END
+
+ON KEY_DOWN:
+    SET_DIRECTION DOWN
+END
+
+ON KEY_LEFT:
+    SET_DIRECTION LEFT
+END
+
+ON KEY_RIGHT:
+    SET_DIRECTION RIGHT
+END
+
+ON KEY_SPACE:
+    SPAWN BULLET AT PLAYER_DIR
+END

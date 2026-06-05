@@ -1,0 +1,126 @@
+# -*- coding: utf-8 -*-
+# Cambios (Actividad 3 - Punto B):
+#   - <definicion_shape> ahora incluye <atributos_opcionales> antes del END
+#   - Se agregan reglas para <atributo_color>, <atributo_chance> y <color_hex>
+#   - El simbolo ε representa la cadena vacia (atributo opcional ausente)
+
+# Estructura general del programa
+<programa> ::= <tipo_juego> <grid> <definiciones> <eventos>
+
+<tipo_juego> ::= "GAME_TYPE" "TETRIS"
+               | "GAME_TYPE" "TANKS"
+               | "GAME_TYPE" "SNAKE"
+<grid>        ::= "GAME_GRID" "(" <numero> "," <numero> ")"
+<definiciones> ::= <definicion_shape>   <definiciones>
+                 | <definicion_powerup> <definiciones>
+                 | <definicion_shape>
+                 | <definicion_powerup>
+<eventos>      ::= <evento> | <evento> <eventos>
+
+# Definicion de figuras (SHAPE)
+# NUEVO: Se agrega <atributos_opcionales> entre los estados y el END
+<definicion_shape> ::= "DEFINE" "SHAPE" <identificador> ":" <estados> <atributos_opcionales> "END"
+
+<definicion_powerup> ::= "DEFINE" "POWERUP" <identificador> ":" <atributos_powerup> "END"
+
+<atributos_powerup> ::= <atrib_pu> | <atrib_pu> <atributos_powerup>
+<atrib_pu>          ::= "COLOR"  ":" <color_hex>
+                      | "CHANCE" ":" <numero>
+
+<estados> ::= <estado> | <estado> <estados>
+<estado>  ::= "STATE" <numero> ":" <matriz>
+<matriz>  ::= <fila> | <fila> <matriz>
+<fila>    ::= "[" <valores_fila> "]"
+<valores_fila> ::= <numero> | <numero> "," <valores_fila>
+
+#  Atributos opcionales de personalizacion (NUEVO en Punto B)
+# Cada atributo es independiente y puede aparecer en cualquier orden o no aparecer.
+# Si un atributo no esta presente, el compilador asigna un valor por defecto.
+<atributos_opcionales> ::= <atributo_entidad> <atributos_opcionales>
+                         | ε
+
+<atributo_entidad> ::= "COLOR"           ":" <color_hex>
+                     | "CHANCE"          ":" <numero>
+                     | "ENTITY_ROLE"     ":" <rol_entidad>
+                     | "HEALTH"          ":" <numero>
+                     | "SPEED"           ":" <numero>
+                     | "FIRE_RATE"       ":" <numero>
+                     | "COLOR_BY_HEALTH" ":" <lista_cbh>
+
+# FINAL_BOSS ya estaba en <rol_entidad>; se documenta explicitamente
+# que es el rol que activa la logica de vida multiple en el runtime.
+<rol_entidad> ::= "PLAYER" | "ENEMY" | "FINAL_BOSS"
+
+<lista_cbh> ::= <par_cbh> | <par_cbh> "," <lista_cbh>
+<par_cbh>   ::= "(" <numero> "," <color_hex> ")"
+
+# COLOR define el color de relleno de la pieza en formato hexadecimal RGB
+<atributo_color>  ::= "COLOR" ":" <color_hex>
+
+# CHANCE define el peso de probabilidad de aparicion (numero entero positivo)
+<atributo_chance> ::= "CHANCE" ":" <numero>
+
+# Color hexadecimal en formato #RRGGBB (6 digitos hexadecimales)
+<color_hex> ::= "#" <hex_valor>
+<hex_valor> ::= <hex_digito> <hex_digito> <hex_digito> <hex_digito> <hex_digito> <hex_digito>
+<hex_digito> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+               | "A" | "B" | "C" | "D" | "E" | "F"
+
+# Eventos y acciones
+<evento>          ::= "ON" <nombre_evento> ":" <acciones> "END"
+
+# Se agrega "TARGET_SCORE" como nombre de evento valido.
+# Este evento se dispara cuando el jugador alcanza la puntuacion de transicion
+# definida en boss_score_threshold del JSON (valor por defecto: 500 pts).
+# Solo aplica a juegos de tipo TANKS; en Tetris y Snake se ignora.
+<nombre_evento>   ::= "START" | "TICK"
+                    | "LINE_CLEAR"
+                    | "EAT_FOOD" | "EAT_POISON" | "EAT_SHIELD" | "COLLISION_WALL" | "COLLISION_SELF"
+                    | "PLAYER_SHOOT" | "ENEMY_SHOOT" | "BULLET_HIT_ENEMY" | "PLAYER_HIT"
+                    | "PICKUP_HAMMER" | "ALL_ENEMIES_DEAD" | "PLAYER_HEALTH_ZERO"
+                    | "KEY_UP" | "KEY_DOWN" | "KEY_LEFT" | "KEY_RIGHT" | "KEY_SPACE"
+                    | "TARGET_SCORE"
+
+<acciones>     ::= <accion> | <accion> <acciones>
+
+<accion> ::= <accion_spawn>
+           | <accion_mover>
+           | <accion_rotar>
+           | <accion_puntos>
+           | <accion_daño>
+           | <accion_fin>
+           | <accion_direccion>
+
+# SPAWN <identificador> AT <coordenadas> ya cubre el caso de spawnear
+# al boss en una posicion fija, p. ej.:  SPAWN BOSS_TANK AT (14, 1)
+# La regla general "SPAWN <identificador> AT <coordenadas>" lo contempla.
+<accion_spawn>     ::= "SPAWN" "RANDOM_SHAPE"
+                     | "SPAWN" <identificador> "AT" <coordenadas>
+                     | "SPAWN" "BULLET" "AT" "RANDOM"
+                     | "SPAWN" "FOOD"   "AT" "RANDOM"
+
+<accion_mover>     ::= "MOVE" "CURRENT_PIECE" <direccion>
+                     | "MOVE" <identificador> "FORWARD"
+
+<accion_rotar>     ::= "ROTATE" "CURRENT_PIECE"
+
+<accion_puntos>    ::= "INCREASE_SCORE" <numero>
+                     | "DECREASE_SCORE" <numero>
+
+# DAMAGE_ENEMY ya existia; en el contexto del boss, cada vez que
+# una bala del jugador impacta al boss se invoca DAMAGE_ENEMY con el valor
+# configurado (20 pts por defecto). El runtime descuenta ese valor del HP del boss.
+<accion_daño>      ::= "DAMAGE_PLAYER" <numero>
+                     | "DAMAGE_ENEMY"  <numero>
+                     | "HEAL_PLAYER"   <numero>
+
+<accion_fin>       ::= "GAME_OVER" | "PLAYER_WIN"
+
+<accion_direccion> ::= "SET_DIRECTION" <direccion>
+
+<direccion>   ::= "UP" | "DOWN" | "LEFT" | "RIGHT"
+<coordenadas> ::= "(" <numero> "," <numero> ")"
+<identificador> ::= <letra> | <letra> <identificador>
+<numero>        ::= <digito> | <digito> <numero>
+<letra>         ::= "A"..."Z" | "_"
+<digito>        ::= "0"..."9"
