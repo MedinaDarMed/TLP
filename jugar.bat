@@ -10,8 +10,22 @@ if "%1"=="" (
     echo  Uso: jugar [nombre_del_juego]
     echo  Ejemplo: jugar snake
     echo  Ejemplo: jugar tetris
+    echo  Ejemplo: jugar brick_tanks
     echo.
     goto :eof
+)
+
+REM --- DETECCION DE PYTHON ---
+set PYTHON_EXE=python
+where python >nul 2>nul
+if %errorlevel% neq 0 (
+    if exist C:\Python27\python.exe (
+        set PYTHON_EXE=C:\Python27\python.exe
+    ) else (
+        echo !!! Error: No se encontro Python en el PATH ni en C:\Python27 !!!
+        pause
+        goto :eof
+    )
 )
 
 REM --- FASE 1: COMPILACION ---

@@ -419,6 +419,8 @@ class Parser:
                 self.consumir('AT')
                 if self.tokens[self.posicion] == 'RANDOM':
                     params.append(self.consumir())
+                elif self.tokens[self.posicion] == 'PLAYER_DIR':
+                    params.append(self.consumir())
                 else:
                     self.consumir('(')
                     x = int(self.consumir())

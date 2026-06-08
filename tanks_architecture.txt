@@ -838,3 +838,121 @@ DESPUÉS
 for muro in self.walls:
 muro['hp'] = muro['hp_max']
 self.player_hp = min(self.player_hp_max, self.player_hp + 25)
+
+
+=========================================================================
+  BRICKSCRIPT COMPILER — REGISTRO DE CAMBIOS REALIZADOS DARWIN QUIÑONES
+  Proyecto: brick_tanks | Archivo principal: compiler.py
+=========================================================================
+
+
+----------------------------------------------------------------
+CAMBIO 1 — SyntaxError: print sin paréntesis (Python 2 vs 3)
+----------------------------------------------------------------
+El compilador estaba escrito en Python 2.7, pero el sistema lo
+ejecutaba con Python 3 por defecto, lo que causaba el error:
+
+    SyntaxError: Missing parentheses in call to 'print'
+
+Para resolverlo, se modificó jugar.bat para invocar explícitamente
+el intérprete de Python 2.7 en lugar del python del sistema,
+de forma que el compilador se ejecuta exactamente como fue escrito.
+El código de compiler.py no se tocó, ya que está diseñado para
+Python 2.7 y así debe mantenerse.
+
+
+----------------------------------------------------------------
+CAMBIO 2 — Token PLAYER_DIR no reconocido por el parser
+----------------------------------------------------------------
+Al compilar brick_tanks.brick aparecía el error:
+
+    Error de sintaxis: Se esperaba '(' pero se encontro 'PLAYER_DIR'
+
+El problema estaba en el método parsear_evento(). Cuando el parser
+encontraba la cláusula AT, solo sabía manejar dos casos:
+AT RANDOM y AT (x, y) con coordenadas. No existía un caso para
+identificadores de dirección como PLAYER_DIR, que aparece en el
+.brick así:
+
+    ON PLAYER_SHOOT:
+        SPAWN BULLET AT PLAYER_DIR
+    END
+
+Se agregó un tercer caso al bloque AT: si el siguiente token no
+es RANDOM ni un paréntesis, se consume directamente como un
+identificador de dirección. Esto cubre PLAYER_DIR y cualquier
+otro identificador similar que pueda agregarse en el futuro.
+El cambio es retrocompatible; los archivos snake.brick y
+tetris.brick siguen funcionando igual que antes.
+
+
+----------------------------------------------------------------
+CAMBIO 3 — Gramática formal tanks.bnf creada
+----------------------------------------------------------------
+El directorio gramaticas/bnf/ solo tenía snake.bnf, tetris.bnf
+y tetris_remake.bnf. El modo TANKS introduce varias construcciones
+nuevas en el lenguaje BrickScript que no estaban formalizadas
+en ningún archivo de gramática.
+
+Se creó tanks.bnf siguiendo el mismo formato de los otros archivos,
+cubriendo todas las palabras clave y estructuras propias del modo
+TANKS: ENTITY_ROLE, HEALTH, SPEED, FIRE_RATE, COLOR_BY_HEALTH,
+los eventos ON TARGET_SCORE / ON BULLET_HIT_WALL / ON BULLET_HIT_ENEMY
+/ ON BULLET_HIT_BOSS, y la sintaxis SPAWN BULLET AT PLAYER_DIR.
+
+
+----------------------------------------------------------------
+CAMBIO 4 — Verbos del .brick conectados al runtime
+----------------------------------------------------------------
+Antes de este cambio, el runtime ignoraba completamente los verbos
+definidos en brick_tanks.brick. La lógica de daño, curación y
+victoria estaba hardcodeada en funciones como tanks_tick_bullets()
+y tanks_tick_hammer(), con valores fijos que no leían el JSON.
+Esto hacía que modificar el .brick no tuviera ningún efecto real.
+
+Se implementaron los handlers faltantes en ejecutar_evento() para
+que el runtime lea los valores directamente del JSON generado por
+el compilador. Los verbos conectados fueron:
+
+    - DAMAGE_WALL     → ahora lee el valor del evento del JSON
+    - DAMAGE_ENEMY    → ahora lee el valor del evento del JSON
+    - DAMAGE_PLAYER   → ahora lee el valor del evento del JSON
+    - HEAL_PLAYER     → ahora lee el valor del evento del JSON
+    - PLAYER_WIN      → ahora se dispara desde el evento JSON
+    - GAME_OVER       → ahora se dispara desde el evento JSON (TANKS)
+    - SET_DIRECTION   → ahora pasa por el pipeline de eventos
+    - MOVE ... FORWARD → ahora reconocido en contexto TANKS
+
+
+----------------------------------------------------------------
+CAMBIO 5 — boss_score_threshold configurable desde el .brick
+----------------------------------------------------------------
+El umbral de puntos para activar la fase del boss estaba fijo en
+500 dentro del código del compilador, sin ninguna forma de cambiarlo
+desde el archivo .brick.
+
+Se agregó la keyword BOSS_SCORE al lenguaje BrickScript. Ahora el
+diseñador puede escribir en el .brick:
+
+    BOSS_SCORE: 750
+
+Y el compilador lo leerá y lo escribirá en el JSON correctamente.
+Si el .brick no incluye BOSS_SCORE, el valor por defecto sigue
+siendo 500 para mantener retrocompatibilidad.
+
+
+----------------------------------------------------------------
+CAMBIO 6 — ON_TICK conectado al game loop de TANKS
+----------------------------------------------------------------
+El evento ON_TICK estaba definido en el .brick y se compilaba
+correctamente al JSON, pero el game loop del modo TANKS nunca
+llamaba a ejecutar_evento('ON_TICK'), por lo que el evento no
+tenía ningún efecto real.
+
+Se modificó el game loop de TANKS para que pase por el pipeline
+de ejecutar_evento al igual que los otros modos de juego.
+
+
+================================================================
+  FIN DEL REGISTRO
+================================================================

@@ -19,6 +19,7 @@
     ]
   }, 
   "version": "original", 
+  "boss_score_threshold": 500, 
   "shape_types": {
     "PIXEL": "RECTANGULAR"
   }, 

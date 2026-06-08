@@ -657,6 +657,8 @@ class Juego:
             if self.tanks_game_over:
                 self.mostrar_game_over()
                 return
+            if getattr(self, 'player_fire_cooldown', 0) > 0:
+                self.player_fire_cooldown -= 1
             # Marcar que la oleada está en curso en cuanto haya al menos un enemigo vivo
             if not self.tanks_wave_spawned and any(e['alive'] for e in self.enemies):
                 self.tanks_wave_spawned = True
@@ -1502,6 +1504,16 @@ class Juego:
                     self.shield_flash_timer = 12
                 elif verbo == 'GAME_OVER': 
                     self.juego_terminado = True
+                elif verbo == 'DAMAGE_WALL':
+                    self.damage_wall_val = int(objeto)
+                elif verbo == 'DAMAGE_ENEMY':
+                    self.damage_enemy_val = int(objeto)
+                elif verbo == 'DAMAGE_PLAYER':
+                    self.damage_player_val = int(objeto)
+                elif verbo == 'HEAL_PLAYER':
+                    self.heal_player_val = int(objeto)
+                elif verbo == 'PLAYER_WIN':
+                    self.tanks_player_won = True
 
                 if self.tipo_juego == 'TETRIS':
                     if verbo == 'SPAWN': self.tetris_spawn_pieza()
@@ -2231,7 +2243,10 @@ class Juego:
             self.player_pos = [nx, ny]
 
     def tanks_disparar_jugador(self):
-        """Genera un proyectil en la posición y dirección actual del jugador."""
+        if getattr(self, 'player_fire_cooldown', 0) > 0:
+            return
+        frates = self.datos_juego.get('entity_fire_rate', {})
+        self.player_fire_cooldown = frates.get('PLAYER_TANK', 15)
         self.bullets.append({
             'pos':   list(self.player_pos),
             'dir':   self.player_dir,
@@ -2268,6 +2283,13 @@ class Juego:
                 pared = _en_muro(nx, ny, self.walls)
                 if 0 <= nx < self.ancho and 0 <= ny < self.alto and not pared:
                     enemy['pos'] = [nx, ny]
+                else:
+                    if abs(px - ex) >= abs(py - ey):
+                        alt_nx, alt_ny = ex, ey + dy
+                    else:
+                        alt_nx, alt_ny = ex + dx, ey
+                    if 0 <= alt_nx < self.ancho and 0 <= alt_ny < self.alto and not _en_muro(alt_nx, alt_ny, self.walls):
+                        enemy['pos'] = [alt_nx, alt_ny]
 
             # — Disparo: periódico hacia el jugador —
             enemy['fire_counter'] += 1
@@ -2321,7 +2343,9 @@ class Juego:
                 # Actividad 6 fix: verificar las 4 celdas del muro 2x2
                 if mx <= bx <= mx+1 and my <= by <= my+1:
                     # Actividad 6 — ON_BULLET_HIT_WALL: descuenta 1 HP al muro
-                    muro['hp'] -= 1
+                    self.damage_wall_val = 1
+                    self.ejecutar_evento('ON_BULLET_HIT_WALL')
+                    muro['hp'] -= self.damage_wall_val
                     eliminada = True
                     break   # un solo muro por celda
 
@@ -2336,15 +2360,12 @@ class Juego:
                     if enemy['pos'] == [bx, by]:
                         # Actividad 6 — ON_BULLET_HIT_ENEMY / ON_BULLET_HIT_BOSS
                         danio_evento = 'ON_BULLET_HIT_BOSS' if enemy['is_boss'] else 'ON_BULLET_HIT_ENEMY'
-                        # El daño fijo es 20 HP (definido en los eventos del JSON)
-                        danio = 20
-                        enemy['hp'] -= danio
+                        self.damage_enemy_val = 20
+                        self.ejecutar_evento(danio_evento)
+                        enemy['hp'] -= self.damage_enemy_val
                         if enemy['hp'] <= 0:
                             enemy['alive'] = False
-                            # Puntos: boss 100, enemigo normal 50 (según evento)
-                            puntos_extra = 100 if enemy['is_boss'] else 50
-                            self.puntuacion += puntos_extra
-                            self.actualizar_marcador()
+                            # Puntuación extra delegada a INCREASE_SCORE en los eventos json
                             if enemy['is_boss'] and self.boss_phase_active:
                                 self.boss_defeated = True
                         eliminada = True
@@ -2354,10 +2375,13 @@ class Juego:
             elif bala['owner'] == 'enemy':
                 if [bx, by] == self.player_pos:
                     # Actividad 6 — ON_PLAYER_HIT: descuenta 10 HP al jugador
-                    self.player_hp -= 10
+                    self.damage_player_val = 10
+                    self.ejecutar_evento('ON_PLAYER_HIT')
+                    self.player_hp -= self.damage_player_val
                     self.player_hp = max(0, self.player_hp)
                     self.actualizar_marcador()
                     if self.player_hp <= 0:
+                        self.ejecutar_evento('ON_PLAYER_HEALTH_ZERO')
                         self.tanks_game_over = True
                     eliminada = True
 
@@ -2383,8 +2407,10 @@ class Juego:
 
         # Comprobar si el jugador lo recogió
         if self.hammer_pos is not None and self.player_pos == self.hammer_pos:
+            self.heal_player_val = self.hammer_hp_restore
+            self.ejecutar_evento('ON_PICKUP_HAMMER')
             self.player_hp = min(self.player_hp_max,
-                                self.player_hp + self.hammer_hp_restore)
+                                self.player_hp + self.heal_player_val)
             self.hammer_pos = None
             self.hammer_timer = 0
             self.actualizar_marcador()

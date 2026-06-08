@@ -445,6 +445,7 @@
     ]
   }, 
   "version": "remake", 
+  "boss_score_threshold": 500, 
   "shape_types": {
     "Z_PIECE": "RECTANGULAR", 
     "S_PIECE": "RECTANGULAR", 

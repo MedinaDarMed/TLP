@@ -208,7 +208,7 @@
     ]
   }, 
   "version": "original", 
-  "boss_score_threshold": 1000, 
+  "boss_score_threshold": 500, 
   "shape_types": {
     "T_PIECE": "RECTANGULAR", 
     "L_PIECE": "RECTANGULAR", 
