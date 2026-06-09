@@ -8,7 +8,7 @@ Cambios realizados Sara (Actividad 5 - Punto B - Final Boss).
 Se implementó el Punto B de la Actividad 5: Final Boss (Tanque Jefe / Fortaleza).
 Al alcanzar 500 puntos, el juego realiza una transición para enfrentar al jefe final.
 Los cambios garantizan retrocompatibilidad: todos los juegos anteriores (snake, tetris,
-tetris_remake, snake_evolved) siguen siendo compilables y ejecutables sin errores.
+tanks.bnf, snake_evolved) siguen siendo compilables y ejecutables sin errores.
 
 =======================================================================
   RESUMEN DE CAMBIOS - ACTIVIDAD 5, PUNTO B: FINAL BOSS
@@ -64,7 +64,7 @@ ON START:
     SPAWN HEAVY_TANK AT (10, 2)
 END
 
-# tetris_remake.bnf
+# tanks.bnf
 
 * Cambio 1 — Se agrega "TARGET_SCORE" como nombre de evento válido en <nombre_evento>:
 
