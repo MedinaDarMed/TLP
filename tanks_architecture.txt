@@ -2,6 +2,322 @@
           BITÁCORA FINAL DE CAMBIOS: PROYECTO BRICKSCRIPT - BRICK TANKS
 ================================================================================
 
+Cambios realizados Santiago (Actividad 5 - Punto A - Especificacion del Tanque Jugador y Enemigos)
+---------------------------------------------------------------------------------------------------------------------
+
+Se implementó el Punto A de la Actividad 5: Especificación del Tanque Jugador y Enemigos.
+La gramática define con claridad quién es el jugador y quiénes son los oponentes,
+eliminando ambigüedades en el motor. Se añadió soporte para puntos de resistencia del jugador,
+ítem de recuperación (martillo), y tanques enemigos con variaciones cromáticas según su estado.
+
+=======================================================================
+  RESUMEN DE CAMBIOS - ACTIVIDAD 5, PUNTO A: ESPECIFICACION DEL TANQUE JUGADOR Y ENEMIGOS
+=======================================================================
+
+# brick_tanks.brick
+
+* Cambio 1 — Se define PLAYER_TANK con identificador único, color distintivo y puntos de resistencia:
+
+- ANTES
+(no existía definición formal de tanque jugador con ENTITY_ROLE: PLAYER ni atributo HEALTH)
+
+- DESPUÉS
+DEFINE SHAPE PLAYER_TANK:
+    STATE 1:
+        [0, 1, 0]
+        [1, 1, 1]
+        [0, 1, 0]
+    ENTITY_ROLE: PLAYER
+    COLOR: #00FF00
+    HEALTH: 100
+END
+
+  El identificador PLAYER_TANK es único en el archivo; ninguna otra entidad puede tener
+  ENTITY_ROLE: PLAYER. El color #00FF00 (verde) lo diferencia visualmente de los enemigos.
+  HEALTH: 100 establece los puntos de resistencia iniciales del jugador.
+
+* Cambio 2 — Se define el ítem HAMMER (martillo) de aparición aleatoria para recuperar resistencia:
+
+- ANTES
+(no existía)
+
+- DESPUÉS
+DEFINE SHAPE HAMMER:
+    STATE 1:
+        [0, 1]
+        [1, 1]
+    ENTITY_ROLE: ITEM
+    COLOR: #FFD700
+    HEAL_AMOUNT: 25
+END
+
+  El ítem aparece aleatoriamente en el mapa durante el juego. Al ser recogido por el jugador,
+  recupera 25 puntos de resistencia (HEAL_AMOUNT: 25), sin superar el máximo definido en HEALTH.
+
+* Cambio 3 — Se definen múltiples tipos de tanques enemigos con ENTITY_ROLE: ENEMY,
+  colores y variaciones cromáticas según resistencia o velocidad:
+
+- ANTES
+(no existían definiciones formales de enemigos con HEALTH, SPEED, FIRE_RATE ni COLOR_BY_HEALTH)
+
+- DESPUÉS
+DEFINE SHAPE GRUNT_TANK:
+    STATE 1:
+        [1, 0, 1]
+        [1, 1, 1]
+        [0, 1, 0]
+    ENTITY_ROLE: ENEMY
+    COLOR: #FF4444
+    HEALTH: 40
+    SPEED: 2
+    FIRE_RATE: 60
+    COLOR_BY_HEALTH: (50, #FF4444), (25, #FF0000)
+END
+
+DEFINE SHAPE HEAVY_TANK:
+    STATE 1:
+        [1, 1, 1]
+        [1, 0, 1]
+        [1, 1, 1]
+    ENTITY_ROLE: ENEMY
+    COLOR: #FF8800
+    HEALTH: 80
+    SPEED: 1
+    FIRE_RATE: 45
+    COLOR_BY_HEALTH: (66, #FF8800), (33, #FF4400)
+END
+
+  GRUNT_TANK es un enemigo rápido y de poca resistencia; cambia de color cuando su
+  resistencia cae al 50% y al 25%. HEAVY_TANK es más lento y resistente, con variaciones
+  cromáticas en 66% y 33% de vida, indicando visualmente el daño acumulado.
+  Ambos pueden disparar y restar puntos de resistencia al tanque jugador al impactarlo.
+
+# tanks.bnf
+
+* Cambio 1 — Se agregan PLAYER, ENEMY e ITEM como roles válidos en <rol_entidad>:
+
+- ANTES
+<rol_entidad> ::= \"PLAYER\" | \"ENEMY\" | \"FINAL_BOSS\"
+(sin definición formal de ITEM ni comentarios sobre semántica)
+
+- DESPUÉS
+<rol_entidad> ::= \"PLAYER\" | \"ENEMY\" | \"FINAL_BOSS\" | \"ITEM\"
+# PLAYER: identifica al tanque controlado por el usuario. Solo puede existir uno.
+# ENEMY: tanque oponente que puede disparar y agredir al jugador restando HEALTH.
+# ITEM: objeto recogible (ej. HAMMER) que al ser tocado por el jugador ejecuta
+#        el evento ON PICKUP_HAMMER y aplica HEAL_AMOUNT puntos de recuperación.
+# FINAL_BOSS: activa la lógica de vida múltiple (HP) en el runtime.
+
+* Cambio 2 — Se agregan HEALTH, SPEED, FIRE_RATE, HEAL_AMOUNT y COLOR_BY_HEALTH
+  como atributos válidos en <atributo_entidad>:
+
+- ANTES
+<atributo_entidad> ::= <color_base> | <color_por_estado>
+
+- DESPUÉS
+<atributo_entidad> ::= <color_base>
+                     | <color_por_salud>
+                     | \"HEALTH\" \":\" <entero_positivo>
+                     | \"SPEED\" \":\" <entero_positivo>
+                     | \"FIRE_RATE\" \":\" <entero_positivo>
+                     | \"HEAL_AMOUNT\" \":\" <entero_positivo>
+
+<color_por_salud> ::= \"COLOR_BY_HEALTH\" \":\" \"(\" <umbral_color> (\",\" <umbral_color>)* \")\"
+<umbral_color>    ::= \"(\" <entero_1_100> \",\" <color_hex> \")\"
+
+# HEALTH: puntos de resistencia máximos de la entidad.
+# SPEED: velocidad de movimiento en celdas por tick.
+# FIRE_RATE: intervalo de ticks entre disparos del enemigo.
+# HEAL_AMOUNT: puntos de resistencia que recupera el jugador al recoger el ítem.
+# COLOR_BY_HEALTH: lista de umbrales (porcentaje, color_hex) que cambian el color
+#                   de la entidad según su porcentaje de vida restante.
+
+* Cambio 3 — Se agrega PICKUP_HAMMER como nombre de evento válido en <nombre_evento>:
+
+- ANTES
+<nombre_evento> ::= \"START\" | \"TICK\"
+                  | ...
+                  | \"KEY_UP\" | \"KEY_DOWN\" | \"KEY_LEFT\" | \"KEY_RIGHT\" | \"KEY_SPACE\"
+
+- DESPUÉS
+<nombre_evento> ::= \"START\" | \"TICK\"
+                  | ...
+                  | \"KEY_UP\" | \"KEY_DOWN\" | \"KEY_LEFT\" | \"KEY_RIGHT\" | \"KEY_SPACE\"
+                  | \"PICKUP_HAMMER\"
+
+  NOTA: PICKUP_HAMMER se dispara cuando el jugador se mueve a la celda del martillo.
+  El runtime evalúa la colisión en tanks_tick_hammer() y llama a ejecutar_evento().
+
+# compiler.py
+
+* Cambio 1 — Se agrega soporte de parsing para HEALTH, SPEED, FIRE_RATE, HEAL_AMOUNT
+  y COLOR_BY_HEALTH dentro del bloque DEFINE SHAPE en parsear_define():
+
+- ANTES
+  Solo se parseaban COLOR y STATE dentro de DEFINE SHAPE. Los demás atributos
+  se ignoraban silenciosamente.
+
+- DESPUÉS
+  El parser ahora reconoce y almacena en el AST:
+    entity_health[nombre]        ← valor de HEALTH
+    entity_speed[nombre]         ← valor de SPEED
+    entity_fire_rate[nombre]     ← valor de FIRE_RATE
+    entity_heal_amount[nombre]   ← valor de HEAL_AMOUNT (solo para ITEM)
+    entity_color_by_health[nombre] ← lista de tuplas (umbral%, color_hex)
+
+  RETROCOMPATIBILIDAD: los bloques .brick sin estos atributos usan valores
+  por defecto (HEALTH: 100, SPEED: 1, FIRE_RATE: 60) y siguen compilando sin errores.
+
+* Cambio 2 — Se escribe entity_health, entity_speed, entity_fire_rate,
+  entity_heal_amount y entity_color_by_health en el JSON de salida:
+
+- ANTES
+            json_out['entity_roles'] = self.ast['entity_roles']
+            json_out['shape_colors'] = self.ast['shape_colors']
+
+- DESPUÉS
+            json_out['entity_roles']          = self.ast['entity_roles']
+            json_out['shape_colors']          = self.ast['shape_colors']
+            json_out['entity_health']         = self.ast['entity_health']
+            json_out['entity_speed']          = self.ast['entity_speed']
+            json_out['entity_fire_rate']      = self.ast['entity_fire_rate']
+            json_out['entity_heal_amount']    = self.ast['entity_heal_amount']
+            json_out['entity_color_by_health']= self.ast['entity_color_by_health']
+
+# runtime.py
+
+— __init__() bloque TANKS
+
+* Cambio 1 — Se inicializa player_hp y player_hp_max desde el JSON:
+
+- ANTES
+            self.player_pos = [0, 0]
+
+- DESPUÉS
+            self.player_pos  = [0, 0]
+            healths          = self.datos_juego.get('entity_health', {})
+            self.player_hp_max = healths.get('PLAYER_TANK', 100)
+            self.player_hp     = self.player_hp_max
+
+  RETROCOMPATIBILIDAD: usa get() con default 100, por lo que JSONs sin entity_health
+  funcionan sin cambios.
+
+* Cambio 2 — Se inicializa la lógica del ítem HAMMER:
+
+- ANTES
+(no existía)
+
+- DESPUÉS
+            self.hammer_pos    = None   # None = no está en el mapa
+            self.hammer_timer  = 0      # ticks hasta la próxima aparición
+            self.hammer_heal   = self.datos_juego.get('entity_heal_amount', {}).get('HAMMER', 25)
+
+— tanks_tick_hammer() — método nuevo
+
+* Cambio 1 — Se crea el método que gestiona la aparición aleatoria y recogida del martillo:
+
+- ANTES
+(no existía)
+
+- DESPUÉS
+    def tanks_tick_hammer(self):
+        # Aparición aleatoria cada ~300 ticks si no hay martillo en el mapa
+        if self.hammer_pos is None:
+            self.hammer_timer += 1
+            if self.hammer_timer >= 300:
+                self.hammer_timer = 0
+                self.hammer_pos = [
+                    random.randint(1, self.ancho - 2),
+                    random.randint(1, self.alto - 2)
+                ]
+        else:
+            # Colisión jugador / martillo
+            if self.hammer_pos == self.player_pos:
+                self.player_hp = min(self.player_hp_max, self.player_hp + self.hammer_heal)
+                self.hammer_pos = None
+                self.ejecutar_evento('ON_PICKUP_HAMMER')
+
+— tanks_tick_bullets() — detección de impacto sobre el jugador
+
+* Cambio 1 — Las balas enemigas restan player_hp en lugar de terminar el juego
+  inmediatamente; el GAME OVER ocurre solo cuando player_hp llega a 0:
+
+- ANTES
+                if bala_enemiga and [bx, by] == self.player_pos:
+                    self.tanks_game_over = True
+
+- DESPUÉS
+                if bala_enemiga and [bx, by] == self.player_pos:
+                    damage = self.datos_juego.get('entity_damage', {}).get('ENEMY_BULLET', 10)
+                    self.player_hp -= damage
+                    self.actualizar_hp_bar()
+                    if self.player_hp <= 0:
+                        self.tanks_game_over = True
+                    bala['alive'] = False
+
+— dibujar() bloque TANKS
+
+* Cambio 1 — Se dibuja la barra de vida del jugador y el martillo en el canvas:
+
+- ANTES
+(no se dibujaban el ítem ni la barra de HP del jugador)
+
+- DESPUÉS
+            # ── Ítem HAMMER ──
+            if self.hammer_pos:
+                hx, hy = self.hammer_pos
+                self.canvas.create_rectangle(hx*ts, hy*ts, hx*ts+ts, hy*ts+ts,
+                                             fill='#FFD700', outline='#AA8800')
+                self.canvas.create_text(hx*ts + ts//2, hy*ts + ts//2,
+                                        text=u'\u2692', fill='#000000',
+                                        font=('Courier', max(8, ts-2), 'bold'))
+
+            # ── Barra de HP del jugador (panel lateral) ──
+            if hasattr(self, 'player_hp_bar'):
+                self.player_hp_bar.delete('all')
+                pct = max(0.0, self.player_hp / float(max(self.player_hp_max, 1)))
+                bar_w = int(120 * pct)
+                col = '#00FF00' if pct > 0.5 else ('#FFFF00' if pct > 0.25 else '#FF2222')
+                if bar_w > 0:
+                    self.player_hp_bar.create_rectangle(0, 0, bar_w, 10,
+                                                        fill=col, outline='')
+
+  Los enemigos también se dibujan aplicando COLOR_BY_HEALTH: el motor selecciona el color
+  correspondiente al umbral de vida más cercano por debajo del porcentaje actual.
+
+# brick_tanks.json
+
+* Cambio 1 — Se agregan los mapas entity_health, entity_speed, entity_fire_rate,
+  entity_heal_amount y entity_color_by_health generados por el compilador:
+
+- ANTES
+(no existían estos campos)
+
+- DESPUÉS
+    \"entity_health\": {
+      \"PLAYER_TANK\": 100,
+      \"GRUNT_TANK\":  40,
+      \"HEAVY_TANK\":  80,
+      \"HAMMER\":      0
+    },
+    \"entity_speed\": {
+      \"PLAYER_TANK\": 1,
+      \"GRUNT_TANK\":  2,
+      \"HEAVY_TANK\":  1
+    },
+    \"entity_fire_rate\": {
+      \"GRUNT_TANK\": 60,
+      \"HEAVY_TANK\": 45
+    },
+    \"entity_heal_amount\": {
+      \"HAMMER\": 25
+    },
+    \"entity_color_by_health\": {
+      \"GRUNT_TANK\": { \"50\": \"#FF4444\", \"25\": \"#FF0000\" },
+      \"HEAVY_TANK\": { \"66\": \"#FF8800\", \"33\": \"#FF4400\" }
+    }
+---------------------------------------------------------------------------------------------------------------------
+
 Cambios realizados Sara (Actividad 5 - Punto B - Final Boss).
 ---------------------------------------------------------------------------------------------------------------------
 
