@@ -1,0 +1,140 @@
+# -*- coding: utf-8 -*-
+# Gramática Maestra Unificada para BrickScript (Soporta TETRIS, SNAKE y TANKS)
+
+<programa> ::= <tipo_juego> <grid> <configuracion> <nivel_opcional> <definiciones> <eventos>
+
+<tipo_juego> ::= "GAME_TYPE" "TETRIS"
+               | "GAME_TYPE" "SNAKE"
+               | "GAME_TYPE" "TANKS"
+
+<grid> ::= "GAME_GRID" "(" <numero> "," <numero> ")"
+
+# Configuraciones globales (opcionales, e.g. BOSS_SCORE)
+<configuracion> ::= <parametro_config> <configuracion> | ε
+<parametro_config> ::= "BOSS_SCORE" ":" <numero>
+
+# Nivel opcional (SNAKE)
+<nivel_opcional> ::= "LEVEL" <nombre_nivel> | ε
+<nombre_nivel>   ::= "BABY" | "ENTUSIASTA" | "NYAN_CAT" | "EASY" | "MEDIUM" | "HARD"
+
+<definiciones> ::= <definicion_shape> <definiciones>
+                 | <definicion_powerup> <definiciones>
+                 | <definicion_levels> <definiciones>
+                 | ε
+
+# Definición de Figuras / Entidades (SHAPE)
+<definicion_shape> ::= "DEFINE" "SHAPE" <identificador> ":" <estados> <atributos_shape> "END"
+
+<estados> ::= <estado> | <estado> <estados>
+<estado>  ::= "STATE" <numero> ":" <matriz>
+<matriz>  ::= <fila> | <fila> <matriz>
+<fila>    ::= "[" <valores_fila> "]"
+<valores_fila> ::= <numero> | <numero> "," <valores_fila>
+
+# Atributos de Shape unificados (Soporta Snake: SHAPE_TYPE y Tanks/Tetris_Remake: varios)
+<atributos_shape> ::= <atributo_shape> <atributos_shape> | ε
+<atributo_shape>  ::= "SHAPE_TYPE"      ":" <tipo_forma>
+                    | "COLOR"           ":" <color_hex>
+                    | "CHANCE"          ":" <numero>
+                    | "ENTITY_ROLE"     ":" <rol_entidad>
+                    | "HEALTH"          ":" <numero>
+                    | "SPEED"           ":" <numero>
+                    | "FIRE_RATE"       ":" <numero>
+                    | "COLOR_BY_HEALTH" ":" <lista_cbh>
+
+<tipo_forma>  ::= "RECTANGULAR" | "CIRCULAR" | "TRIANGULAR"
+<rol_entidad> ::= "PLAYER" | "ENEMY" | "FINAL_BOSS" | "WALL"
+
+<lista_cbh> ::= <par_cbh> | <par_cbh> "," <lista_cbh>
+<par_cbh>   ::= "(" <numero> "," <color_hex> ")"
+
+# Definición de Powerups
+<definicion_powerup> ::= "DEFINE" "POWERUP" <identificador> ":" <atributos_powerup> "END"
+<atributos_powerup>  ::= <atrib_pu> | <atrib_pu> <atributos_powerup>
+<atrib_pu>           ::= "COLOR" ":" <color_hex>
+                       | "CHANCE" ":" <numero>
+                       | "DURATION" ":" <numero>
+                       | "DURATION_SECONDS" ":" <numero>
+
+# Definición de Niveles (SNAKE)
+<definicion_levels> ::= "DEFINE" "LEVELS" ":" <configs_nivel> "END"
+<configs_nivel>     ::= <config_nivel> | <config_nivel> <configs_nivel>
+<config_nivel>      ::= "LEVEL" <nombre_nivel> ":" <atribs_nivel> "END"
+<atribs_nivel>      ::= <atrib_nivel> | <atrib_nivel> <atribs_nivel>
+<atrib_nivel>       ::= "SPEED" ":" <numero>
+                      | "HAS_POISON" ":" <booleano>
+                      | "HAS_OBSTACLES" ":" <booleano>
+                      | "HAS_POWERUP" ":" <booleano>
+                      | "MIN_SCORE" ":" <numero>
+
+<booleano> ::= "TRUE" | "FALSE"
+
+# Colores Hexadecimales
+<color_hex> ::= "#" <hex_valor>
+<hex_valor> ::= <hex_digito> <hex_digito> <hex_digito> <hex_digito> <hex_digito> <hex_digito>
+<hex_digito> ::= "0"..."9" | "A"..."F"
+
+# Eventos
+<eventos> ::= <evento> | <evento> <eventos>
+<evento>  ::= "ON" <nombre_evento> ":" <acciones> "END"
+
+<nombre_evento> ::= "START" | "TICK" | "LINE_CLEAR"
+                  | "EAT_FOOD" | "EAT_POISON" | "EAT_SHIELD" 
+                  | "COLLISION_WALL" | "COLLISION_SELF" | "COLLISION_CLOUD"
+                  | "TARGET_SCORE" 
+                  | "PLAYER_SHOOT" | "ENEMY_SHOOT" 
+                  | "BULLET_HIT_WALL" | "BULLET_HIT_ENEMY" | "BULLET_HIT_BOSS" 
+                  | "PLAYER_HIT" | "PICKUP_HAMMER" 
+                  | "ALL_ENEMIES_DEAD" | "PLAYER_HEALTH_ZERO"
+                  | "KEY_UP" | "KEY_DOWN" | "KEY_LEFT" | "KEY_RIGHT" | "KEY_SPACE"
+
+<acciones> ::= <accion> | <accion> <acciones>
+<accion>   ::= <accion_spawn>
+             | <accion_mover>
+             | <accion_rotar>
+             | <accion_puntos>
+             | <accion_daño>
+             | <accion_direccion>
+             | <accion_estado>
+             | <accion_fin>
+
+<accion_spawn> ::= "SPAWN" "RANDOM_SHAPE"
+                 | "SPAWN" <identificador> "AT" <coordenadas_spawn>
+                 | "SPAWN" "BULLET" "AT" "RANDOM"
+                 | "SPAWN" "BULLET" "AT" "PLAYER_DIR"
+                 | "SPAWN" "FOOD" "AT" "RANDOM"
+                 | "SPAWN" "POISON" "AT" "RANDOM"
+                 | "SPAWN" "SHIELD" "AT" "RANDOM"
+                 | "SPAWN" "PLAYER" "AT" <coordenadas>
+                 | "SPAWN" "CLOUD" "AT" <coordenadas>
+
+<coordenadas_spawn> ::= <coordenadas> | "RANDOM"
+<coordenadas>       ::= "(" <numero> "," <numero> ")"
+
+<accion_mover> ::= "MOVE" "CURRENT_PIECE" <direccion>
+                 | "MOVE" "PLAYER" "FORWARD"
+                 | "MOVE" <identificador> "FORWARD"
+
+<accion_rotar> ::= "ROTATE" "CURRENT_PIECE"
+
+<accion_puntos> ::= "INCREASE_SCORE" <numero>
+                  | "DECREASE_SCORE" <numero>
+                  | "RESET_SCORE"
+
+<accion_daño> ::= "DAMAGE_WALL" <numero>
+                | "DAMAGE_ENEMY" <numero>
+                | "DAMAGE_PLAYER" <numero>
+                | "HEAL_PLAYER" <numero>
+
+<accion_direccion> ::= "SET_DIRECTION" <direccion>
+<direccion>        ::= "UP" | "DOWN" | "LEFT" | "RIGHT"
+
+<accion_estado> ::= "GROW" "PLAYER" <numero>
+                  | "GRANT_SHIELD"
+
+<accion_fin> ::= "GAME_OVER" | "PLAYER_WIN"
+
+<identificador> ::= <letra> | <letra> <identificador>
+<numero>        ::= <digito> | <digito> <numero>
+<letra>         ::= "A"..."Z" | "_"
+<digito>        ::= "0"..."9"

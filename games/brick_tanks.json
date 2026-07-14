@@ -1,0 +1,438 @@
+{
+  "entity_speed": {
+    "WALL_BLOCK": 1, 
+    "PLAYER_TANK": 3, 
+    "HEAVY_TANK": 1, 
+    "GRUNT_TANK": 2, 
+    "BOSS_TANK": 1
+  }, 
+  "entity_health": {
+    "WALL_BLOCK": 2, 
+    "PLAYER_TANK": 100, 
+    "HEAVY_TANK": 60, 
+    "GRUNT_TANK": 30, 
+    "BOSS_TANK": 200
+  }, 
+  "entity_color_by_health": {
+    "WALL_BLOCK": {}, 
+    "PLAYER_TANK": {}, 
+    "HEAVY_TANK": {
+      "25": "#FF0000", 
+      "50": "#FF6600", 
+      "100": "#AA2222"
+    }, 
+    "GRUNT_TANK": {
+      "25": "#FFFF00", 
+      "50": "#FF8800", 
+      "100": "#FF4444"
+    }, 
+    "BOSS_TANK": {
+      "33": "#FF0000", 
+      "66": "#FF0088", 
+      "100": "#FF00FF"
+    }
+  }, 
+  "level": "BABY", 
+  "shape_chances": {
+    "WALL_BLOCK": 1, 
+    "PLAYER_TANK": 1, 
+    "HEAVY_TANK": 1, 
+    "GRUNT_TANK": 1, 
+    "BOSS_TANK": 1
+  }, 
+  "entity_roles": {
+    "WALL_BLOCK": "WALL", 
+    "PLAYER_TANK": "PLAYER", 
+    "HEAVY_TANK": "ENEMY", 
+    "GRUNT_TANK": "ENEMY", 
+    "BOSS_TANK": "FINAL_BOSS"
+  }, 
+  "tipo_juego": "TANKS", 
+  "levels": {}, 
+  "shapes": {
+    "WALL_BLOCK": [
+      [
+        [
+          1, 
+          1
+        ], 
+        [
+          1, 
+          1
+        ]
+      ]
+    ], 
+    "PLAYER_TANK": [
+      [
+        [
+          0, 
+          1, 
+          0
+        ], 
+        [
+          1, 
+          1, 
+          1
+        ], 
+        [
+          0, 
+          1, 
+          0
+        ]
+      ]
+    ], 
+    "HEAVY_TANK": [
+      [
+        [
+          1, 
+          1, 
+          1
+        ], 
+        [
+          1, 
+          1, 
+          1
+        ], 
+        [
+          1, 
+          1, 
+          1
+        ]
+      ]
+    ], 
+    "GRUNT_TANK": [
+      [
+        [
+          1, 
+          0, 
+          1
+        ], 
+        [
+          1, 
+          1, 
+          1
+        ], 
+        [
+          0, 
+          1, 
+          0
+        ]
+      ]
+    ], 
+    "BOSS_TANK": [
+      [
+        [
+          1, 
+          1, 
+          1, 
+          1, 
+          1
+        ], 
+        [
+          1, 
+          1, 
+          1, 
+          1, 
+          1
+        ], 
+        [
+          1, 
+          1, 
+          0, 
+          1, 
+          1
+        ], 
+        [
+          1, 
+          1, 
+          1, 
+          1, 
+          1
+        ], 
+        [
+          1, 
+          1, 
+          1, 
+          1, 
+          1
+        ]
+      ]
+    ]
+  }, 
+  "version": "tanks", 
+  "boss_score_threshold": 500, 
+  "shape_types": {
+    "WALL_BLOCK": "RECTANGULAR", 
+    "PLAYER_TANK": "RECTANGULAR", 
+    "HEAVY_TANK": "RECTANGULAR", 
+    "GRUNT_TANK": "RECTANGULAR", 
+    "BOSS_TANK": "RECTANGULAR"
+  }, 
+  "powerups": {
+    "HAMMER_PU": {
+      "trigger_type": null, 
+      "color": "#FFDD00", 
+      "states": [], 
+      "chance": 15, 
+      "duration": null, 
+      "trigger_value": null
+    }
+  }, 
+  "config": {
+    "grid_size": [
+      30, 
+      20
+    ]
+  }, 
+  "events": {
+    "ON_BULLET_HIT_BOSS": [
+      {
+        "params": [], 
+        "accion": "DAMAGE_ENEMY", 
+        "objeto": "20"
+      }, 
+      {
+        "params": [], 
+        "accion": "INCREASE_SCORE", 
+        "objeto": "10"
+      }
+    ], 
+    "ON_PICKUP_HAMMER": [
+      {
+        "params": [], 
+        "accion": "HEAL_PLAYER", 
+        "objeto": "25"
+      }
+    ], 
+    "ON_START": [
+      {
+        "params": [
+          [
+            14, 
+            17
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "PLAYER_TANK"
+      }, 
+      {
+        "params": [
+          [
+            4, 
+            2
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "GRUNT_TANK"
+      }, 
+      {
+        "params": [
+          [
+            24, 
+            2
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "GRUNT_TANK"
+      }, 
+      {
+        "params": [
+          [
+            14, 
+            2
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "HEAVY_TANK"
+      }, 
+      {
+        "params": [
+          [
+            7, 
+            6
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "WALL_BLOCK"
+      }, 
+      {
+        "params": [
+          [
+            14, 
+            6
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "WALL_BLOCK"
+      }, 
+      {
+        "params": [
+          [
+            21, 
+            6
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "WALL_BLOCK"
+      }, 
+      {
+        "params": [
+          [
+            7, 
+            13
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "WALL_BLOCK"
+      }, 
+      {
+        "params": [
+          [
+            14, 
+            13
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "WALL_BLOCK"
+      }, 
+      {
+        "params": [
+          [
+            21, 
+            13
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "WALL_BLOCK"
+      }
+    ], 
+    "ON_BULLET_HIT_ENEMY": [
+      {
+        "params": [], 
+        "accion": "DAMAGE_ENEMY", 
+        "objeto": "20"
+      }, 
+      {
+        "params": [], 
+        "accion": "INCREASE_SCORE", 
+        "objeto": "50"
+      }
+    ], 
+    "ON_KEY_RIGHT": [
+      {
+        "params": [], 
+        "accion": "SET_DIRECTION", 
+        "objeto": "RIGHT"
+      }
+    ], 
+    "ON_TICK": [
+      {
+        "params": [
+          "FORWARD"
+        ], 
+        "accion": "MOVE", 
+        "objeto": "PLAYER_TANK"
+      }
+    ], 
+    "ON_ALL_ENEMIES_DEAD": [
+      {
+        "params": [], 
+        "accion": "PLAYER_WIN", 
+        "objeto": null
+      }
+    ], 
+    "ON_BULLET_HIT_WALL": [
+      {
+        "params": [], 
+        "accion": "DAMAGE_WALL", 
+        "objeto": "1"
+      }
+    ], 
+    "ON_ENEMY_SHOOT": [
+      {
+        "params": [], 
+        "accion": "DAMAGE_PLAYER", 
+        "objeto": "10"
+      }
+    ], 
+    "ON_TARGET_SCORE": [
+      {
+        "params": [
+          [
+            14, 
+            1
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "BOSS_TANK"
+      }
+    ], 
+    "ON_PLAYER_SHOOT": [
+      {
+        "params": [
+          "PLAYER_DIR"
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "BULLET"
+      }
+    ], 
+    "ON_KEY_LEFT": [
+      {
+        "params": [], 
+        "accion": "SET_DIRECTION", 
+        "objeto": "LEFT"
+      }
+    ], 
+    "ON_KEY_SPACE": [
+      {
+        "params": [
+          "PLAYER_DIR"
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "BULLET"
+      }
+    ], 
+    "ON_PLAYER_HIT": [
+      {
+        "params": [], 
+        "accion": "DAMAGE_PLAYER", 
+        "objeto": "10"
+      }
+    ], 
+    "ON_KEY_UP": [
+      {
+        "params": [], 
+        "accion": "SET_DIRECTION", 
+        "objeto": "UP"
+      }
+    ], 
+    "ON_PLAYER_HEALTH_ZERO": [
+      {
+        "params": [], 
+        "accion": "GAME_OVER", 
+        "objeto": null
+      }
+    ], 
+    "ON_KEY_DOWN": [
+      {
+        "params": [], 
+        "accion": "SET_DIRECTION", 
+        "objeto": "DOWN"
+      }
+    ]
+  }, 
+  "shape_colors": {
+    "WALL_BLOCK": "#888866", 
+    "PLAYER_TANK": "#00FFFF", 
+    "HEAVY_TANK": "#AA2222", 
+    "GRUNT_TANK": "#FF4444", 
+    "BOSS_TANK": "#FF00FF"
+  }, 
+  "entity_fire_rate": {
+    "WALL_BLOCK": 60, 
+    "PLAYER_TANK": 8, 
+    "HEAVY_TANK": 50, 
+    "GRUNT_TANK": 80, 
+    "BOSS_TANK": 30
+  }
+}

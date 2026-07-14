@@ -1,0 +1,236 @@
+{
+  "entity_speed": {}, 
+  "entity_health": {}, 
+  "entity_color_by_health": {}, 
+  "level": "NYAN_CAT", 
+  "shape_chances": {
+    "PIXEL": 1
+  }, 
+  "entity_roles": {}, 
+  "tipo_juego": "SNAKE", 
+  "levels": {
+    "BABY": {
+      "has_poison": false, 
+      "has_obstacles": false, 
+      "min_score": 0, 
+      "speed": 15, 
+      "has_powerup": false
+    }, 
+    "NYAN_CAT": {
+      "has_poison": true, 
+      "has_obstacles": true, 
+      "min_score": 80, 
+      "speed": 3, 
+      "has_powerup": true
+    }, 
+    "ENTUSIASTA": {
+      "has_poison": true, 
+      "has_obstacles": false, 
+      "min_score": 30, 
+      "speed": 8, 
+      "has_powerup": true
+    }
+  }, 
+  "shapes": {
+    "PIXEL": [
+      [
+        [
+          1
+        ]
+      ]
+    ]
+  }, 
+  "version": "remake", 
+  "boss_score_threshold": 500, 
+  "shape_types": {
+    "PIXEL": "CIRCULAR"
+  }, 
+  "powerups": {
+    "SHIELD_PU": {
+      "trigger_type": null, 
+      "color": "#00FFAA", 
+      "states": [], 
+      "chance": 100, 
+      "duration": 160, 
+      "trigger_value": null
+    }
+  }, 
+  "config": {
+    "grid_size": [
+      20, 
+      20
+    ]
+  }, 
+  "events": {
+    "ON_KEY_DOWN": [
+      {
+        "params": [], 
+        "accion": "SET_DIRECTION", 
+        "objeto": "DOWN"
+      }
+    ], 
+    "ON_EAT_POISON": [
+      {
+        "params": [], 
+        "accion": "DECREASE_SCORE", 
+        "objeto": "5"
+      }
+    ], 
+    "ON_EAT_FOOD": [
+      {
+        "params": [], 
+        "accion": "INCREASE_SCORE", 
+        "objeto": "10"
+      }, 
+      {
+        "params": [
+          "1"
+        ], 
+        "accion": "GROW", 
+        "objeto": "PLAYER"
+      }, 
+      {
+        "params": [
+          "RANDOM"
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "FOOD"
+      }, 
+      {
+        "params": [
+          "RANDOM"
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "POISON"
+      }
+    ], 
+    "ON_KEY_RIGHT": [
+      {
+        "params": [], 
+        "accion": "SET_DIRECTION", 
+        "objeto": "RIGHT"
+      }
+    ], 
+    "ON_TICK": [
+      {
+        "params": [
+          "FORWARD"
+        ], 
+        "accion": "MOVE", 
+        "objeto": "PLAYER"
+      }
+    ], 
+    "ON_COLLISION_CLOUD": [
+      {
+        "params": [], 
+        "accion": "RESET_SCORE", 
+        "objeto": null
+      }
+    ], 
+    "ON_COLLISION_WALL": [
+      {
+        "params": [], 
+        "accion": "GAME_OVER", 
+        "objeto": null
+      }
+    ], 
+    "ON_COLLISION_SELF": [
+      {
+        "params": [], 
+        "accion": "GAME_OVER", 
+        "objeto": null
+      }
+    ], 
+    "ON_START": [
+      {
+        "params": [
+          [
+            10, 
+            10
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "PLAYER"
+      }, 
+      {
+        "params": [
+          "RANDOM"
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "FOOD"
+      }, 
+      {
+        "params": [
+          [
+            5, 
+            5
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "CLOUD"
+      }, 
+      {
+        "params": [
+          [
+            15, 
+            15
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "CLOUD"
+      }, 
+      {
+        "params": [
+          [
+            5, 
+            15
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "CLOUD"
+      }, 
+      {
+        "params": [
+          [
+            15, 
+            5
+          ]
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "CLOUD"
+      }, 
+      {
+        "params": [
+          "RANDOM"
+        ], 
+        "accion": "SPAWN", 
+        "objeto": "SHIELD"
+      }
+    ], 
+    "ON_KEY_UP": [
+      {
+        "params": [], 
+        "accion": "SET_DIRECTION", 
+        "objeto": "UP"
+      }
+    ], 
+    "ON_EAT_SHIELD": [
+      {
+        "params": [], 
+        "accion": "GRANT_SHIELD", 
+        "objeto": null
+      }
+    ], 
+    "ON_KEY_LEFT": [
+      {
+        "params": [], 
+        "accion": "SET_DIRECTION", 
+        "objeto": "LEFT"
+      }
+    ]
+  }, 
+  "shape_colors": {
+    "PIXEL": "#00FFFF"
+  }, 
+  "entity_fire_rate": {}
+}

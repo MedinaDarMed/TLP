@@ -1,0 +1,86 @@
+# -*- coding: utf-8 -*-
+# Gramática Formal BNF para el modo TANKS (Brick Tanks)
+
+<programa> ::= <tipo_juego> <grid> <configuracion> <definiciones> <eventos>
+
+<tipo_juego> ::= "GAME_TYPE" "TANKS"
+<grid>        ::= "GAME_GRID" "(" <numero> "," <numero> ")"
+
+<configuracion> ::= <parametro_config> <configuracion> | ε
+<parametro_config> ::= "BOSS_SCORE" ":" <numero>
+
+<definiciones> ::= <definicion_shape>   <definiciones>
+                 | <definicion_powerup> <definiciones>
+                 | <definicion_shape>
+                 | <definicion_powerup>
+
+<definicion_shape> ::= "DEFINE" "SHAPE" <identificador> ":" <estados> <atributos_opcionales> "END"
+<definicion_powerup> ::= "DEFINE" "POWERUP" <identificador> ":" <atributos_powerup> "END"
+
+<estados> ::= <estado> | <estado> <estados>
+<estado>  ::= "STATE" <numero> ":" <matriz>
+<matriz>  ::= <fila> | <fila> <matriz>
+<fila>    ::= "[" <valores_fila> "]"
+<valores_fila> ::= <numero> | <numero> "," <valores_fila>
+
+<atributos_opcionales> ::= <atributo_entidad> <atributos_opcionales> | ε
+<atributo_entidad> ::= "COLOR"           ":" <color_hex>
+                     | "CHANCE"          ":" <numero>
+                     | "ENTITY_ROLE"     ":" <rol_entidad>
+                     | "HEALTH"          ":" <numero>
+                     | "SPEED"           ":" <numero>
+                     | "FIRE_RATE"       ":" <numero>
+                     | "COLOR_BY_HEALTH" ":" <lista_cbh>
+
+<rol_entidad> ::= "PLAYER" | "ENEMY" | "FINAL_BOSS" | "WALL"
+<lista_cbh> ::= <par_cbh> | <par_cbh> "," <lista_cbh>
+<par_cbh>   ::= "(" <numero> "," <color_hex> ")"
+
+<atributos_powerup> ::= <atrib_pu> | <atrib_pu> <atributos_powerup>
+<atrib_pu>          ::= "COLOR"  ":" <color_hex>
+                      | "CHANCE" ":" <numero>
+
+<color_hex> ::= "#" <hex_valor>
+<hex_valor> ::= <hex_digito> <hex_digito> <hex_digito> <hex_digito> <hex_digito> <hex_digito>
+<hex_digito> ::= "0"..."9" | "A"..."F"
+
+<eventos> ::= <evento> | <evento> <eventos>
+<evento>  ::= "ON" <nombre_evento> ":" <acciones> "END"
+
+<nombre_evento> ::= "START" | "TICK" | "TARGET_SCORE" 
+                  | "PLAYER_SHOOT" | "ENEMY_SHOOT" | "BULLET_HIT_WALL" 
+                  | "BULLET_HIT_ENEMY" | "BULLET_HIT_BOSS" | "PLAYER_HIT" 
+                  | "PICKUP_HAMMER" | "ALL_ENEMIES_DEAD" | "PLAYER_HEALTH_ZERO"
+                  | "KEY_UP" | "KEY_DOWN" | "KEY_LEFT" | "KEY_RIGHT" | "KEY_SPACE"
+
+<acciones> ::= <accion> | <accion> <acciones>
+<accion>   ::= <accion_spawn>
+             | <accion_mover>
+             | <accion_daño>
+             | <accion_fin>
+             | <accion_direccion>
+             | <accion_puntos>
+
+<accion_spawn> ::= "SPAWN" <identificador> "AT" <coordenadas_spawn>
+                 | "SPAWN" "BULLET" "AT" "PLAYER_DIR"
+
+<coordenadas_spawn> ::= "(" <numero> "," <numero> ")" | "RANDOM"
+
+<accion_mover> ::= "MOVE" <identificador> "FORWARD"
+
+<accion_daño> ::= "DAMAGE_WALL" <numero>
+                | "DAMAGE_ENEMY" <numero>
+                | "DAMAGE_PLAYER" <numero>
+                | "HEAL_PLAYER" <numero>
+
+<accion_puntos> ::= "INCREASE_SCORE" <numero> | "DECREASE_SCORE" <numero>
+
+<accion_fin> ::= "GAME_OVER" | "PLAYER_WIN"
+
+<accion_direccion> ::= "SET_DIRECTION" <direccion>
+<direccion> ::= "UP" | "DOWN" | "LEFT" | "RIGHT"
+
+<identificador> ::= <letra> | <letra> <identificador>
+<numero>        ::= <digito> | <digito> <numero>
+<letra>         ::= "A"..."Z" | "_"
+<digito>        ::= "0"..."9"

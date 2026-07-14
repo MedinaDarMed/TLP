@@ -1,0 +1,157 @@
+=============================================================
+      BrickScript: Requisitos de Instalacion y Ejecucion
+=============================================================
+
+Este documento describe el software necesario y los pasos para compilar y
+ejecutar los juegos creados con el lenguaje BrickScript.
+
+
+-------------------------------------------------------------
+## 1. Requisitos de Software
+-------------------------------------------------------------
+
+* **Sistema Operativo:** **Windows XP** o superior (Windows 7, 8, 10, 11).
+
+* **Interprete de Python:** Se requiere **Python 2.7**.
+    * **IMPORTANTE:** El codigo **NO** es compatible con Python 3 o
+      superior. Tanto `compiler.py` (usa la sentencia `print "..."` de
+      Python 2) como `runtime.py` (usa `import Tkinter as tk` y
+      `import tkMessageBox`, con nombres de modulo de Python 2 — en
+      Python 3 estos modulos se llaman `tkinter` y `tkinter.messagebox`
+      en minuscula) dependen de la sintaxis y de los nombres de modulo
+      de Python 2.7.
+    * El runtime usa una interfaz grafica (GUI) construida con
+      **Tkinter**, incluida por defecto en las instalaciones estandar
+      de Python 2.7 para Windows, asi que normalmente no hay que
+      instalar nada adicional.
+    * Durante la instalacion de Python 2.7, se recomienda seleccionar
+      la opcion "Add python.exe to Path" para poder ejecutar comandos
+      de python desde cualquier ubicacion. Si tu instalador no ofrecio
+      esa opcion, agrega manualmente `C:\Python27\` y
+      `C:\Python27\Scripts\` al PATH del sistema.
+
+* **Dependencias:** **Ninguna externa.** El proyecto completo utiliza
+  unicamente la libreria estandar de Python 2.7 (sys, json, time,
+  random, math, Tkinter, tkMessageBox). No es necesario instalar
+  paquetes con pip ni ningun modulo adicional.
+
+* **Nota sobre deteccion de Python:** `jugar.bat` primero busca
+  cualquier "python" disponible en el PATH del sistema. Si no encuentra
+  ninguno, intenta usar como respaldo la ruta fija
+  `C:\Python27\python.exe`. Si instalaste Python 2.7 en otra carpeta y
+  no esta en el PATH, ver la seccion 4 para ajustar esa ruta. Si tienes
+  tambien Python 3 instalado en el mismo equipo, asegurate de que el
+  "python" que se resuelve desde el PATH sea el 2.7 (o edita `jugar.bat`
+  para apuntar directamente a `C:\Python27\python.exe`), ya que
+  ejecutar este proyecto con Python 3 producira errores de sintaxis.
+
+
+-------------------------------------------------------------
+## 2. Estructura de Archivos del Proyecto
+-------------------------------------------------------------
+
+Para que los scripts funcionen correctamente, los archivos deben estar
+organizados de la siguiente manera:
+
+    ProyectoFinal\
+    |
+    +--- compiler.py         (El compilador que traduce .brick a .json)
+    +--- runtime.py          (El motor GUI que ejecuta los juegos .json)
+    +--- jugar.bat           (El script para compilar y jugar facilmente)
+    +--- INSTALL.txt         (Este archivo)
+    +--- MANUAL.txt          (Manual tecnico: sintaxis y como agregar juegos)
+    |
+    +--- gramaticas bnf\
+    |     +--- brickscript.bnf   (gramatica maestra unificada del lenguaje)
+    |     +--- tetris.bnf, tetris_remake.bnf, snake.bnf, tanks.bnf (historicas)
+    |
+    \--- games\
+         +--- tetris.brick / tetris.json
+         +--- tetris_remake.brick / tetris_remake.json
+         +--- snake.brick / snake.json
+         +--- snake_evolved.brick / snake_evolved.json
+         +--- brick_tanks.brick / brick_tanks.json
+
+
+-------------------------------------------------------------
+## 3. Como Compilar y Ejecutar un Juego
+-------------------------------------------------------------
+
+La forma mas sencilla de jugar es utilizando el script `jugar.bat`.
+
+1.  **Abre la Consola de Comandos:**
+    * Ve a `Inicio > Ejecutar`, escribe `cmd.exe` y presiona Enter.
+
+2.  **Navega a la Carpeta del Proyecto:**
+    * Escribe el comando para cambiar de directorio. Por ejemplo:
+      ```
+      cd C:\ProyectoFinal
+      ```
+
+3.  **Ejecuta el Script `jugar.bat`:**
+    * Escribe `jugar` seguido del nombre del juego que deseas probar
+      (sin la extension `.brick`).
+
+    * **Para jugar Snake:**
+        ```
+        jugar snake
+        ```
+    * **Para jugar Snake Evolucionado (con niveles):**
+        ```
+        jugar snake_evolved
+        ```
+    * **Para jugar Tetris:**
+        ```
+        jugar tetris
+        ```
+    * **Para jugar Tetris Remasterizado (con powerups):**
+        ```
+        jugar tetris_remake
+        ```
+    * **Para jugar Brick Tanks:**
+        ```
+        jugar brick_tanks
+        ```
+
+El script se encargara de llamar al **compilador** (`compiler.py`) para
+traducir el codigo `.brick` a un archivo `.json`. Si la compilacion es
+exitosa, automaticamente ejecutara el **motor de juego** (`runtime.py`)
+con el archivo `.json` recien creado, abriendo una ventana grafica.
+
+Para salir del juego, cierra la ventana o usa el boton/tecla de salida
+que la propia interfaz grafica indique.
+
+
+-------------------------------------------------------------
+## 4. Solucion de Problemas Comunes
+-------------------------------------------------------------
+
+* **Error: `'python' no se reconoce como un comando interno o externo...`**
+    * **Causa:** Python no esta en el PATH del sistema, y tampoco esta
+      instalado en `C:\Python27\`.
+    * **Solucion:** Agrega tu interprete de Python al PATH, o edita
+      `jugar.bat` con el Bloc de Notas y reemplaza la ruta de respaldo
+      `C:\Python27\python.exe` por la ubicacion real de tu `python.exe`.
+
+* **Error: `ImportError: No module named Tkinter`**
+    * **Causa:** Tu instalacion de Python 2.7 no incluye el modulo
+      Tkinter, o el `python` que se esta ejecutando en realidad es
+      Python 3 (en Python 3 el modulo se llama `tkinter`, en minuscula,
+      y por eso el `import Tkinter` con mayuscula falla).
+    * **Solucion:** Confirma con `python --version` que estas usando
+      2.7.x. Si es asi y aun falla, reinstala Python 2.7 marcando
+      expresamente el componente "Tcl/Tk" durante la instalacion.
+
+* **El juego no compila y muestra "ERROR DE COMPILACION"**
+    * **Causa:** Hay un error de sintaxis en el archivo `.brick` que
+      modificaste.
+    * **Solucion:** Revisa cuidadosamente tu codigo `.brick` y comparalo
+      con los ejemplos de `games\`. Asegurate de que todas las palabras
+      clave esten en MAYUSCULAS, bien escritas, y que los parentesis,
+      corchetes y dos puntos esten en su lugar. Consulta MANUAL.txt y
+      `gramaticas bnf\brickscript.bnf` para la sintaxis completa.
+
+* **Quiero entender la sintaxis del lenguaje o agregar un juego nuevo**
+    * Consulta **MANUAL.txt**, que documenta todas las etiquetas
+      disponibles (COLOR, CHANCE, niveles, HP, etc.) y explica paso a
+      paso como anadir un juego nuevo al ecosistema.

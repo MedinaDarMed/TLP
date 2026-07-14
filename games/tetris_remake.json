@@ -1,0 +1,597 @@
+{
+  "entity_speed": {}, 
+  "entity_health": {}, 
+  "entity_color_by_health": {}, 
+  "level": "BABY", 
+  "shape_chances": {
+    "Z_PIECE": 18, 
+    "S_PIECE": 17, 
+    "L_PIECE": 15, 
+    "T_PIECE": 15, 
+    "I_PIECE": 15, 
+    "O_PIECE": 20
+  }, 
+  "entity_roles": {}, 
+  "tipo_juego": "TETRIS", 
+  "levels": {}, 
+  "shapes": {
+    "Z_PIECE": [
+      [
+        [
+          1, 
+          1, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          1
+        ], 
+        [
+          0, 
+          0, 
+          0
+        ]
+      ], 
+      [
+        [
+          0, 
+          0, 
+          1
+        ], 
+        [
+          0, 
+          1, 
+          1
+        ], 
+        [
+          0, 
+          1, 
+          0
+        ]
+      ], 
+      [
+        [
+          0, 
+          0, 
+          0
+        ], 
+        [
+          1, 
+          1, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          1
+        ]
+      ], 
+      [
+        [
+          0, 
+          1, 
+          0
+        ], 
+        [
+          1, 
+          1, 
+          0
+        ], 
+        [
+          1, 
+          0, 
+          0
+        ]
+      ]
+    ], 
+    "S_PIECE": [
+      [
+        [
+          0, 
+          1, 
+          1
+        ], 
+        [
+          1, 
+          1, 
+          0
+        ], 
+        [
+          0, 
+          0, 
+          0
+        ]
+      ], 
+      [
+        [
+          1, 
+          0, 
+          0
+        ], 
+        [
+          1, 
+          1, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          0
+        ]
+      ], 
+      [
+        [
+          0, 
+          0, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          1
+        ], 
+        [
+          1, 
+          1, 
+          0
+        ]
+      ], 
+      [
+        [
+          0, 
+          1, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          1
+        ], 
+        [
+          0, 
+          0, 
+          1
+        ]
+      ]
+    ], 
+    "L_PIECE": [
+      [
+        [
+          0, 
+          1, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          1
+        ]
+      ], 
+      [
+        [
+          0, 
+          0, 
+          0
+        ], 
+        [
+          1, 
+          1, 
+          1
+        ], 
+        [
+          1, 
+          0, 
+          0
+        ]
+      ], 
+      [
+        [
+          1, 
+          1, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          0
+        ]
+      ], 
+      [
+        [
+          0, 
+          0, 
+          1
+        ], 
+        [
+          1, 
+          1, 
+          1
+        ], 
+        [
+          0, 
+          0, 
+          0
+        ]
+      ]
+    ], 
+    "T_PIECE": [
+      [
+        [
+          0, 
+          1, 
+          0
+        ], 
+        [
+          1, 
+          1, 
+          1
+        ], 
+        [
+          0, 
+          0, 
+          0
+        ]
+      ], 
+      [
+        [
+          0, 
+          1, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          1
+        ], 
+        [
+          0, 
+          1, 
+          0
+        ]
+      ], 
+      [
+        [
+          0, 
+          0, 
+          0
+        ], 
+        [
+          1, 
+          1, 
+          1
+        ], 
+        [
+          0, 
+          1, 
+          0
+        ]
+      ], 
+      [
+        [
+          0, 
+          1, 
+          0
+        ], 
+        [
+          1, 
+          1, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          0
+        ]
+      ]
+    ], 
+    "I_PIECE": [
+      [
+        [
+          0, 
+          1, 
+          0, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          0, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          0, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          0, 
+          0
+        ]
+      ], 
+      [
+        [
+          0, 
+          0, 
+          0, 
+          0
+        ], 
+        [
+          1, 
+          1, 
+          1, 
+          1
+        ], 
+        [
+          0, 
+          0, 
+          0, 
+          0
+        ], 
+        [
+          0, 
+          0, 
+          0, 
+          0
+        ]
+      ], 
+      [
+        [
+          0, 
+          1, 
+          0, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          0, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          0, 
+          0
+        ], 
+        [
+          0, 
+          1, 
+          0, 
+          0
+        ]
+      ], 
+      [
+        [
+          0, 
+          0, 
+          0, 
+          0
+        ], 
+        [
+          1, 
+          1, 
+          1, 
+          1
+        ], 
+        [
+          0, 
+          0, 
+          0, 
+          0
+        ], 
+        [
+          0, 
+          0, 
+          0, 
+          0
+        ]
+      ]
+    ], 
+    "O_PIECE": [
+      [
+        [
+          1, 
+          1
+        ], 
+        [
+          1, 
+          1
+        ]
+      ], 
+      [
+        [
+          1, 
+          1
+        ], 
+        [
+          1, 
+          1
+        ]
+      ], 
+      [
+        [
+          1, 
+          1
+        ], 
+        [
+          1, 
+          1
+        ]
+      ], 
+      [
+        [
+          1, 
+          1
+        ], 
+        [
+          1, 
+          1
+        ]
+      ]
+    ]
+  }, 
+  "version": "remake", 
+  "boss_score_threshold": 500, 
+  "shape_types": {
+    "Z_PIECE": "RECTANGULAR", 
+    "S_PIECE": "RECTANGULAR", 
+    "L_PIECE": "RECTANGULAR", 
+    "T_PIECE": "RECTANGULAR", 
+    "I_PIECE": "RECTANGULAR", 
+    "O_PIECE": "RECTANGULAR"
+  }, 
+  "powerups": {
+    "DOUBLE_CLEAR_PU": {
+      "trigger_type": "LINE_CLEAR_EXACT", 
+      "color": "#FF00FF", 
+      "states": [
+        [
+          [
+            1, 
+            1, 
+            1
+          ], 
+          [
+            1, 
+            1, 
+            1
+          ]
+        ]
+      ], 
+      "chance": 100, 
+      "duration": null, 
+      "trigger_value": 2
+    }, 
+    "LINE_PURGE_PU": {
+      "trigger_type": "LINE_CUMULATIVE", 
+      "color": "#888888", 
+      "states": [
+        [
+          [
+            0
+          ]
+        ]
+      ], 
+      "chance": 100, 
+      "duration": null, 
+      "trigger_value": 8
+    }, 
+    "TRIPLE_CLEAR_PU": {
+      "trigger_type": "LINE_CLEAR_MIN", 
+      "color": "#FFFFFF", 
+      "states": [
+        [
+          [
+            1, 
+            0
+          ], 
+          [
+            1, 
+            0
+          ]
+        ], 
+        [
+          [
+            1, 
+            1
+          ], 
+          [
+            0, 
+            0
+          ]
+        ]
+      ], 
+      "chance": 100, 
+      "duration": null, 
+      "trigger_value": 3
+    }
+  }, 
+  "config": {
+    "grid_size": [
+      10, 
+      20
+    ]
+  }, 
+  "events": {
+    "ON_KEY_DOWN": [
+      {
+        "params": [
+          "DOWN"
+        ], 
+        "accion": "MOVE", 
+        "objeto": "CURRENT_PIECE"
+      }
+    ], 
+    "ON_KEY_UP": [
+      {
+        "params": [], 
+        "accion": "ROTATE", 
+        "objeto": "CURRENT_PIECE"
+      }
+    ], 
+    "ON_TICK": [
+      {
+        "params": [
+          "DOWN"
+        ], 
+        "accion": "MOVE", 
+        "objeto": "CURRENT_PIECE"
+      }
+    ], 
+    "ON_LINE_CLEAR": [
+      {
+        "params": [], 
+        "accion": "INCREASE_SCORE", 
+        "objeto": "100"
+      }
+    ], 
+    "ON_START": [
+      {
+        "params": [], 
+        "accion": "SPAWN", 
+        "objeto": "RANDOM_SHAPE"
+      }
+    ], 
+    "ON_KEY_RIGHT": [
+      {
+        "params": [
+          "RIGHT"
+        ], 
+        "accion": "MOVE", 
+        "objeto": "CURRENT_PIECE"
+      }
+    ], 
+    "ON_KEY_LEFT": [
+      {
+        "params": [
+          "LEFT"
+        ], 
+        "accion": "MOVE", 
+        "objeto": "CURRENT_PIECE"
+      }
+    ]
+  }, 
+  "shape_colors": {
+    "Z_PIECE": "#FF2244", 
+    "S_PIECE": "#00FF44", 
+    "L_PIECE": "#FF8800", 
+    "T_PIECE": "#AA00FF", 
+    "I_PIECE": "#00FFFF", 
+    "O_PIECE": "#FFFF00"
+  }, 
+  "entity_fire_rate": {}
+}

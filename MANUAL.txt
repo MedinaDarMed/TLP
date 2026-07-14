@@ -1,0 +1,528 @@
+================================================================================
+                    MANUAL DE USUARIO TECNICO - BRICKSCRIPT
+              Ecosistema de Lenguaje y Motor para Juegos Retro
+================================================================================
+
+Version del documento: Entrega Final (ProyectoFinal.zip)
+
+
+--------------------------------------------------------------------------------
+INDICE
+--------------------------------------------------------------------------------
+1. Vision general del ecosistema
+2. Requisitos y estructura de archivos
+3. Como compilar y ejecutar un juego (jugar.bat)
+4. Como anadir un juego nuevo al ecosistema (paso a paso)
+5. Referencia completa de etiquetas BrickScript
+   5.1 Etiquetas globales
+   5.2 DEFINE SHAPE y sus atributos
+   5.3 COLOR y COLOR_BY_HEALTH
+   5.4 CHANCE (probabilidad de aparicion)
+   5.5 ENTITY_ROLE, HEALTH, SPEED, FIRE_RATE (modo TANKS)
+   5.6 DEFINE LEVELS (Niveles, modo SNAKE)
+   5.7 DEFINE POWERUP
+   5.8 Eventos (ON ...) y acciones
+6. Deteccion automatica de version (original / remake / tanks)
+7. Arquitectura del runtime (motor polimorfico)
+8. Solucion de problemas comunes
+
+
+================================================================================
+1. VISION GENERAL DEL ECOSISTEMA
+================================================================================
+
+BrickScript es un lenguaje de dominio especifico (DSL) para describir juegos
+retro de estilo "Brick Game". El ecosistema esta compuesto por tres piezas:
+
+  * compiler.py   -> Lee un archivo fuente ".brick" (texto plano) y lo traduce
+                      a un archivo ".json" (el AST / arbol de sintaxis).
+  * runtime.py    -> Lee el archivo ".json" y ejecuta el juego en una ventana
+                      grafica (GUI hecha con Tkinter).
+  * jugar.bat     -> Script de conveniencia que llama primero al compilador y,
+                      si la compilacion es exitosa, lanza el runtime.
+
+Un mismo compilador y un mismo runtime soportan HOY tres tipos de juego
+distintos (GAME_TYPE): TETRIS, SNAKE y TANKS. Esto es posible porque el
+lenguaje BrickScript fue disenado con atributos opcionales: cada juego usa
+solo las etiquetas que necesita, y las etiquetas que no reconoce simplemente
+se ignoran, sin romper la compilacion. Esta es la base de la
+retrocompatibilidad total del proyecto: un archivo ".brick" viejo (sin
+COLOR, sin CHANCE, sin ENTITY_ROLE, etc.) sigue compilando y ejecutandose
+exactamente igual que siempre, porque el compilador rellena esos campos con
+valores por defecto razonables.
+
+
+================================================================================
+2. REQUISITOS Y ESTRUCTURA DE ARCHIVOS
+================================================================================
+
+* Sistema operativo : Windows (XP o superior).
+* Interprete Python : Se requiere **Python 2.7**. El proyecto NO es
+                        compatible con Python 3: compiler.py usa la
+                        sentencia "print" de Python 2 y runtime.py usa
+                        "import Tkinter as tk" / "import tkMessageBox"
+                        (nombres de modulo de Python 2; en Python 3 se
+                        llaman "tkinter" y "tkinter.messagebox", en
+                        minuscula). Tkinter viene incluido por defecto
+                        en Python 2.7 para Windows.
+                        Si "python" no esta en el PATH, jugar.bat intenta
+                        usar automaticamente "C:\Python27\python.exe" como
+                        alternativa. Ver INSTALL.txt para el detalle
+                        completo de requisitos e instalacion.
+* Dependencias      : Ninguna externa. Solo libreria estandar de Python 2.7.
+
+Estructura de carpetas de esta entrega (ProyectoFinal):
+
+    ProyectoFinal\
+    |
+    +--- compiler.py            (compilador: .brick -> .json)
+    +--- runtime.py              (motor de ejecucion / GUI)
+    +--- jugar.bat                (script de compilar + ejecutar)
+    +--- MANUAL.txt               (este documento)
+    |
+    +--- gramaticas bnf\
+    |     +--- brickscript.bnf      (gramatica MAESTRA unificada: TETRIS+SNAKE+TANKS)
+    |     +--- tetris.bnf           (gramatica original de Tetris, historica)
+    |     +--- tetris_remake.bnf    (gramatica extendida de Tetris con powerups/colores)
+    |     +--- snake.bnf            (gramatica de Snake con niveles y powerups)
+    |     +--- tanks.bnf            (gramatica del modo Tanks)
+    |
+    \--- games\
+          +--- tetris.brick / tetris.json                 (Tetris original)
+          +--- tetris_remake.brick / tetris_remake.json    (Tetris remasterizado)
+          +--- snake.brick / snake.json                    (Snake original)
+          +--- snake_evolved.brick / snake_evolved.json    (Snake con niveles)
+          +--- brick_tanks.brick / brick_tanks.json        (Tanques, juego nuevo)
+
+NOTA: brickscript.bnf es la referencia unica y actual del lenguaje completo.
+Los archivos tetris.bnf, tetris_remake.bnf, snake.bnf y tanks.bnf se
+conservan como documentacion historica de la evolucion incremental de cada
+modo de juego, pero para escribir un ".brick" nuevo se recomienda usar
+brickscript.bnf como referencia, ya que reune todas las reglas vigentes en
+un solo lugar.
+
+
+================================================================================
+3. COMO COMPILAR Y EJECUTAR UN JUEGO (jugar.bat)
+================================================================================
+
+1. Abrir una consola de comandos (cmd.exe) dentro de la carpeta ProyectoFinal.
+2. Ejecutar:
+
+       jugar <nombre_del_juego_sin_extension>
+
+   Ejemplos:
+
+       jugar tetris
+       jugar tetris_remake
+       jugar snake
+       jugar snake_evolved
+       jugar brick_tanks
+
+3. jugar.bat hace dos cosas en orden:
+   a) Compila:   python compiler.py games\<nombre>.brick
+                 (genera/actualiza games\<nombre>.json)
+   b) Si la compilacion fue exitosa, ejecuta:
+                 python runtime.py games\<nombre>.json
+
+4. Si cambias el archivo ".brick" de un juego, no necesitas hacer nada
+   especial: la proxima vez que ejecutes "jugar <nombre>" el compilador
+   vuelve a generar el ".json" con tus cambios antes de lanzar el juego.
+
+
+================================================================================
+4. COMO ANADIR UN JUEGO NUEVO AL ECOSISTEMA (PASO A PASO)
+================================================================================
+
+El ecosistema fue disenado para que agregar un juego NUEVO no requiera tocar
+compiler.py salvo que introduzcas una etiqueta completamente inedita. Pasos:
+
+PASO 1 - Crear el archivo fuente
+    Crea un archivo de texto en la carpeta "games\", por ejemplo:
+        games\mi_juego.brick
+
+PASO 2 - Declarar el tipo de juego y el tablero
+    Toda partida empieza igual:
+        GAME_TYPE TETRIS   (o SNAKE, o TANKS)
+        GAME_GRID (ANCHO, ALTO)
+
+    Si tu juego es conceptualmente nuevo (ni Tetris, ni Snake, ni Tanks),
+    puedes reutilizar el GAME_TYPE mas parecido a la mecanica que quieras
+    (por ejemplo, TANKS si tu juego tiene entidades con vida, disparos y
+    enemigos) y apoyarte en sus etiquetas ya soportadas. Si necesitas un
+    GAME_TYPE totalmente nuevo, ver PASO 6.
+
+PASO 3 - Definir las figuras/entidades con DEFINE SHAPE
+    Cada pieza, personaje o bloque del juego se define con:
+
+        DEFINE SHAPE NOMBRE:
+            STATE 1:
+                [0, 1, 0]
+                [1, 1, 1]
+                [0, 1, 0]
+            COLOR: #RRGGBB
+        END
+
+    Puedes agregar tantos STATE como rotaciones necesites (por ejemplo,
+    4 estados para una pieza de Tetris) y cualquiera de los atributos
+    descritos en la seccion 5 (COLOR, CHANCE, ENTITY_ROLE, HEALTH, SPEED,
+    FIRE_RATE, COLOR_BY_HEALTH, SHAPE_TYPE). Todos son opcionales.
+
+PASO 4 - Definir la logica con eventos ON ... : ... END
+    El comportamiento del juego se escribe como reacciones a eventos:
+
+        ON START:
+            SPAWN PLAYER AT (10, 10)
+            SPAWN FOOD AT RANDOM
+        END
+
+        ON EAT_FOOD:
+            INCREASE_SCORE 10
+            GROW PLAYER 1
+        END
+
+    La lista completa de eventos y acciones disponibles esta en la
+    seccion 5.8 y en gramaticas bnf\brickscript.bnf.
+
+PASO 5 - Compilar y probar
+    Ejecuta:
+        jugar mi_juego
+    Si compiler.py reporta "ERROR DE COMPILACION", revisa que cada
+    DEFINE / END y cada ON / END esten balanceados, y que los nombres de
+    las etiquetas esten escritos en MAYUSCULAS tal como se documentan aqui.
+
+PASO 6 - (Avanzado) Agregar un GAME_TYPE realmente nuevo o una etiqueta
+    nueva que no existe todavia
+    Si tu juego necesita una mecanica que ninguna etiqueta actual cubre,
+    hay que tocar el compilador y el runtime:
+
+    a) En compiler.py, dentro de Parser.parsear_shape() (o
+       parsear_evento(), si es una accion nueva), agrega un nuevo
+       "elif atributo == 'TU_ETIQUETA':" que lea el valor y lo guarde en
+       self.ast. Sigue el mismo patron que las etiquetas existentes:
+       siempre define un valor por defecto ANTES del bucle, para que los
+       archivos .brick viejos que no usan tu etiqueta nueva sigan
+       compilando sin cambios (retrocompatibilidad).
+    b) Si agregas un GAME_TYPE nuevo, no hace falta declararlo en ningun
+       lugar especial del compilador: el compilador acepta cualquier
+       palabra despues de GAME_TYPE y la guarda tal cual en
+       ast['tipo_juego']. Lo que sí debes hacer es:
+         - Actualizar _detectar_version() en compiler.py si tu juego debe
+           clasificarse como 'remake' o necesita una categoria propia.
+         - En runtime.py, agregar tu tipo de juego a los cuatro
+           "dispatchers" polimorficos (ver seccion 7): __init__ (metodo
+           _init_<tujuego>), dibujar() (metodo _dibujar_<tujuego>),
+           game_loop() y manejar_input_gui(). Cada uno es un simple
+           "elif self.tipo_juego == 'TU_JUEGO': ..." que delega a un
+           metodo nuevo. No es necesario tocar la logica de los otros
+           juegos.
+    c) Actualiza gramaticas bnf\brickscript.bnf agregando tu nueva regla
+       (esto es documentacion, no afecta la compilacion, pero mantiene la
+       gramatica como fuente de verdad del lenguaje).
+    d) Agrega tu(s) archivo(s) .brick de ejemplo dentro de games\ para que
+       otros desarrolladores tengan una referencia funcional.
+
+
+================================================================================
+5. REFERENCIA COMPLETA DE ETIQUETAS BRICKSCRIPT
+================================================================================
+
+--------------------------------------------------------------------------------
+5.1 ETIQUETAS GLOBALES
+--------------------------------------------------------------------------------
+
+GAME_TYPE <TETRIS | SNAKE | TANKS>
+    Obligatoria. Primera linea util del archivo. Define que logica de
+    runtime se usara.
+
+GAME_GRID (ANCHO, ALTO)
+    Obligatoria. Tamano del tablero de juego en celdas.
+
+LEVEL <NOMBRE_DE_NIVEL>
+    Opcional (usada por SNAKE). Indica con que nivel arranca la partida
+    cuando se usa junto a DEFINE LEVELS (ver 5.6). Si se omite, el nivel
+    por defecto es "BABY".
+
+BOSS_SCORE: <numero>
+    Opcional (usada por TANKS). Define cuantos puntos debe acumular el
+    jugador para que se dispare el evento TARGET_SCORE (usualmente para
+    invocar al jefe final / FINAL_BOSS). Valor por defecto: 500.
+
+--------------------------------------------------------------------------------
+5.2 DEFINE SHAPE Y SUS ATRIBUTOS
+--------------------------------------------------------------------------------
+
+    DEFINE SHAPE NOMBRE:
+        STATE 1:
+            [0, 1, 0]
+            [1, 1, 1]
+        STATE 2:
+            [ ... ]
+        <atributos opcionales, cualquier orden>
+    END
+
+* STATE <n>: matriz de 0 y 1 que representa la forma en su rotacion "n".
+  Una figura puede tener 1 o varios STATE (por ejemplo, 4 para las piezas
+  de Tetris que rotan). Los 0 son celdas vacias, los 1 celdas ocupadas.
+
+* SHAPE_TYPE: RECTANGULAR | CIRCULAR | TRIANGULAR
+  Cambia el estilo con el que el runtime dibuja cada celda ocupada.
+  Por defecto: RECTANGULAR. Usado por ejemplo en snake_evolved.brick para
+  dibujar la serpiente como circulos ("PIXEL" con SHAPE_TYPE: CIRCULAR).
+
+--------------------------------------------------------------------------------
+5.3 COLOR Y COLOR_BY_HEALTH
+--------------------------------------------------------------------------------
+
+COLOR: #RRGGBB
+    Color de relleno de la figura, en hexadecimal (por ejemplo #00FFFF).
+    Por defecto: #00FFFF (cian). El lexer del compilador reconoce el "#"
+    de un color y NO lo confunde con el "#" de un comentario siempre que
+    vaya seguido de exactamente 6 digitos hexadecimales.
+
+COLOR_BY_HEALTH: (100, #RRGGBB), (50, #RRGGBB), (25, #RRGGBB)
+    Solo tiene efecto en entidades con ENTITY_ROLE (modo TANKS, ver 5.5).
+    Define una tabla de colores segun el porcentaje de vida restante: el
+    runtime calcula "pct = 100 * hp_actual / hp_maximo" y usa el color del
+    umbral mas ajustado que sea mayor o igual al porcentaje actual. Es una
+    forma sencilla de mostrar visualmente cuando un tanque o el jefe final
+    esta a punto de morir (por ejemplo, cambia de rojo a naranja y luego a
+    amarillo a medida que pierde vida).
+    IMPORTANTE: los umbrales se escriben como numeros, pero como el
+    archivo intermedio es JSON, las claves de un diccionario JSON siempre
+    se guardan como texto. El runtime ya hace la conversion "int(umbral)"
+    antes de comparar, por lo que no es necesario preocuparse por esto al
+    escribir el .brick; simplemente escribe los numeros normalmente.
+
+--------------------------------------------------------------------------------
+5.4 CHANCE (PROBABILIDAD DE APARICION)
+--------------------------------------------------------------------------------
+
+CHANCE: <numero entero positivo>
+    Peso relativo de probabilidad con el que una figura (o un powerup)
+    puede aparecer al azar. Por defecto: 1 (todas las figuras igual de
+    probables). Si, por ejemplo, la pieza A tiene CHANCE: 3 y la pieza B
+    tiene CHANCE: 1, la pieza A aparecera aproximadamente 3 veces mas
+    seguido que la B. El runtime usa estos pesos para hacer una seleccion
+    ponderada en vez de una eleccion uniforme.
+    En DEFINE POWERUP, CHANCE tiene el mismo significado pero aplicado a
+    la probabilidad de que el powerup se active cuando se cumple su
+    TRIGGER.
+
+--------------------------------------------------------------------------------
+5.5 ENTITY_ROLE, HEALTH, SPEED, FIRE_RATE (MODO TANKS)
+--------------------------------------------------------------------------------
+
+Estas etiquetas convierten un SHAPE comun en una "entidad" con vida propia,
+usada principalmente por el modo TANKS (aunque tambien aplican a
+FINAL_BOSS en Tetris/Snake remasterizados si se desea).
+
+ENTITY_ROLE: PLAYER | ENEMY | FINAL_BOSS | WALL
+    Rol que cumple la entidad dentro del juego. PLAYER es el tanque
+    controlado por el usuario; ENEMY son los tanques rivales (Grunt,
+    Heavy, etc.); FINAL_BOSS es un enemigo especial de vida alta que
+    suele aparecer al alcanzar BOSS_SCORE; WALL son bloques destructibles.
+
+HEALTH: <numero>
+    Puntos de vida iniciales de la entidad.
+
+SPEED: <numero, 1-10>
+    Velocidad de movimiento relativa de la entidad (mayor = mas rapida).
+
+FIRE_RATE: <numero de ticks>
+    Cantidad de "ticks" del game-loop que deben pasar entre un disparo y
+    el siguiente para esa entidad. Un numero mas bajo dispara mas rapido.
+    Por defecto: 60 ticks (pensado originalmente para 20 fps, es decir
+    3 segundos). El bucle de Tanques corre a aproximadamente 12 fps (un
+    tick cada 80 ms), asi que conviene declarar un FIRE_RATE explicito en
+    cada SHAPE con ENTITY_ROLE para controlar el ritmo real de disparo en
+    segundos: tiempo_entre_disparos_ms = FIRE_RATE x 80. Por ejemplo, el
+    PLAYER_TANK de brick_tanks.brick usa FIRE_RATE: 8 (unos 640 ms entre
+    disparos), mientras que GRUNT_TANK usa 80 (unos 6.4 s) y BOSS_TANK
+    usa 30 (unos 2.4 s), para que el jugador dispare notablemente mas
+    rapido que los enemigos.
+
+--------------------------------------------------------------------------------
+5.6 DEFINE LEVELS (NIVELES, MODO SNAKE)
+--------------------------------------------------------------------------------
+
+    DEFINE LEVELS:
+        LEVEL BABY:
+            SPEED: 15
+            HAS_POISON: FALSE
+            HAS_OBSTACLES: FALSE
+            HAS_POWERUP: FALSE
+            MIN_SCORE: 0
+        END
+        LEVEL ENTUSIASTA:
+            SPEED: 8
+            HAS_POISON: TRUE
+            HAS_OBSTACLES: FALSE
+            HAS_POWERUP: TRUE
+            MIN_SCORE: 30
+        END
+    END
+
+* LEVEL <nombre>: nombres libres (el proyecto usa BABY, ENTUSIASTA,
+  NYAN_CAT, y por retrocompatibilidad tambien acepta EASY, MEDIUM, HARD).
+* SPEED: velocidad del juego expresada en centesimas de segundo por tick
+  (15 = 0.15 s/tick). Menor numero = juego mas rapido.
+* HAS_POISON: TRUE/FALSE. Si esta activo, aparecen items de veneno que
+  perjudican al jugador si los come.
+* HAS_OBSTACLES: TRUE/FALSE. Activa obstaculos fijos en el tablero
+  (por ejemplo, las "nubes" spawneadas con SPAWN CLOUD AT).
+* HAS_POWERUP: TRUE/FALSE. Habilita que aparezcan powerups (por ejemplo,
+  el escudo) durante ese nivel.
+* MIN_SCORE: puntaje minimo requerido para que el juego suba
+  automaticamente a ese nivel.
+* LEVEL <nombre> (fuera de DEFINE LEVELS, a nivel de programa): indica
+  con cual de los niveles definidos arriba arranca la partida.
+
+--------------------------------------------------------------------------------
+5.7 DEFINE POWERUP
+--------------------------------------------------------------------------------
+
+    DEFINE POWERUP NOMBRE:
+        TRIGGER: <TIPO_DE_DISPARADOR> <numero>
+        STATE 1:
+            [1, 1]
+            [1, 1]
+        COLOR: #RRGGBB
+        CHANCE: <numero>
+        DURATION: <numero_de_ticks>
+        DURATION_SECONDS: <numero_de_segundos>
+    END
+
+* TRIGGER: condicion que activa el powerup. Ejemplos usados en el
+  proyecto: LINE_CLEAR_EXACT 2 (al limpiar exactamente 2 lineas de una
+  vez), LINE_CLEAR_MIN 3 (al limpiar 3 lineas o mas de una vez),
+  LINE_CUMULATIVE 8 (al acumular 8 lineas limpiadas en total).
+* STATE: igual que en DEFINE SHAPE, la forma visual del powerup.
+* COLOR: color del powerup. Por defecto: #FFFFFF.
+* CHANCE: probabilidad de que se otorgue el powerup al cumplirse el
+  TRIGGER (peso, ver 5.4). Por defecto: 100.
+* DURATION: duracion del efecto expresada directamente en ticks del
+  game-loop.
+* DURATION_SECONDS: forma alternativa de expresar la duracion en segundos
+  reales; el compilador la convierte automaticamente a ticks
+  (1 segundo = 20 ticks) y la guarda en el mismo campo que DURATION, asi
+  que solo se necesita usar una de las dos.
+
+--------------------------------------------------------------------------------
+5.8 EVENTOS (ON ...) Y ACCIONES
+--------------------------------------------------------------------------------
+
+Sintaxis general:
+
+    ON NOMBRE_DEL_EVENTO:
+        ACCION_1 ...
+        ACCION_2 ...
+    END
+
+Eventos disponibles (ver tambien gramaticas bnf\brickscript.bnf):
+    START, TICK, LINE_CLEAR, EAT_FOOD, EAT_POISON, EAT_SHIELD,
+    COLLISION_WALL, COLLISION_SELF, COLLISION_CLOUD, TARGET_SCORE,
+    PLAYER_SHOOT, ENEMY_SHOOT, BULLET_HIT_WALL, BULLET_HIT_ENEMY,
+    BULLET_HIT_BOSS, PLAYER_HIT, PICKUP_HAMMER, ALL_ENEMIES_DEAD,
+    PLAYER_HEALTH_ZERO, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_SPACE
+
+Acciones disponibles (resumen; no todas aplican a todos los GAME_TYPE):
+    SPAWN RANDOM_SHAPE
+    SPAWN <NOMBRE_SHAPE> AT (x, y)   |  AT RANDOM
+    SPAWN BULLET AT RANDOM | AT PLAYER_DIR
+    SPAWN FOOD / POISON / SHIELD AT RANDOM
+    SPAWN PLAYER AT (x, y)
+    SPAWN CLOUD AT (x, y)
+    MOVE CURRENT_PIECE <UP|DOWN|LEFT|RIGHT>
+    MOVE PLAYER FORWARD  |  MOVE <NOMBRE> FORWARD
+    ROTATE CURRENT_PIECE
+    SET_DIRECTION <UP|DOWN|LEFT|RIGHT>
+    INCREASE_SCORE <numero>  |  DECREASE_SCORE <numero>  |  RESET_SCORE
+    GROW PLAYER <numero>
+    DAMAGE_WALL <numero> | DAMAGE_ENEMY <numero> | DAMAGE_PLAYER <numero>
+    HEAL_PLAYER <numero>
+    GRANT_SHIELD
+    GAME_OVER  |  PLAYER_WIN
+
+
+================================================================================
+6. DETECCION AUTOMATICA DE VERSION (original / remake / tanks)
+================================================================================
+
+El compilador ya no decide si un juego es "original", "remake" o "tanks"
+mirando el nombre del archivo (esa deteccion por nombre era fragil). En su
+lugar, la funcion _detectar_version() en compiler.py analiza el CONTENIDO
+del AST despues de parsear:
+
+    1. Si GAME_TYPE == TANKS               -> version = "tanks"
+    2. Si usa cualquier atributo extendido
+       (colores distintos de #00FFFF, pesos CHANCE distintos de 1,
+       cualquier POWERUP, cualquier LEVEL, o SHAPE_TYPE distinto de
+       RECTANGULAR)                        -> version = "remake"
+    3. En cualquier otro caso              -> version = "original"
+
+Este campo "version" queda guardado en el .json y sirve como metadato de
+diagnostico; no cambia el comportamiento del runtime, pero permite saber
+de un vistazo que tan "evolucionado" es un archivo .brick determinado.
+
+
+================================================================================
+7. ARQUITECTURA DEL RUNTIME (MOTOR POLIMORFICO)
+================================================================================
+
+runtime.py concentra toda la logica de ejecucion en una sola clase (Juego)
+para mantener el proyecto en un unico archivo, pero internamente esta
+organizada como un motor polimorfico: los cuatro metodos principales actuan
+como "dispatchers" que leen self.tipo_juego y delegan en el submetodo
+especifico de cada juego:
+
+    __init__(self, datos_juego)
+        -> _init_tetris() / _init_snake() / _init_tanks()
+
+    dibujar(self)
+        -> _dibujar_tetris() / _dibujar_snake() / _dibujar_tanks()
+
+    game_loop(self)
+        -> logica especifica segun self.tipo_juego (TETRIS/SNAKE/TANKS)
+
+    manejar_input_gui(self, event)
+        -> logica de teclado especifica segun self.tipo_juego
+
+Para agregar un cuarto juego, basta con anadir una rama mas
+("elif self.tipo_juego == 'TU_JUEGO':") en cada uno de estos cuatro
+puntos de entrada y escribir los metodos _init_tujuego(),
+_dibujar_tujuego(), etc. correspondientes, sin necesidad de tocar la logica
+de TETRIS, SNAKE o TANKS ya existente.
+
+
+================================================================================
+8. SOLUCION DE PROBLEMAS COMUNES
+================================================================================
+
+* "python no se reconoce como un comando..."
+    jugar.bat detecta automaticamente si "python" esta en el PATH; si no
+    lo encuentra, intenta usar C:\Python27\python.exe. Si tu instalacion
+    esta en otra ruta, edita jugar.bat con el Bloc de Notas y ajusta esa
+    ruta, o agrega tu Python al PATH del sistema.
+
+* "ERROR DE COMPILACION" al ejecutar jugar.bat
+    Revisa que cada bloque DEFINE ... END y ON ... END este bien cerrado,
+    que los nombres de etiquetas esten en MAYUSCULAS, y que los colores
+    tengan exactamente 6 digitos hexadecimales despues del "#".
+
+* Un tanque o el jefe final no cambia de color al perder vida
+    Verifica que el SHAPE tenga declarado COLOR_BY_HEALTH con al menos un
+    umbral, y que ENTITY_ROLE este definido (solo las entidades con
+    ENTITY_ROLE usan esta logica).
+
+* Un personaje jugable dispara demasiado lento o demasiado rapido
+    Ajusta su FIRE_RATE (ver seccion 5.5). Recuerda que el bucle de
+    Tanques corre aproximadamente a 80 ms por tick.
+
+* Quiero que una pieza aparezca con mas frecuencia que las demas
+    Sube su CHANCE relativo (ver seccion 5.4) comparado con el de las
+    otras piezas del mismo juego.
+
+================================================================================
+                              FIN DEL MANUAL
+================================================================================
