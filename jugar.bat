@@ -16,15 +16,25 @@ if "%1"=="" (
 )
 
 REM --- DETECCION DE PYTHON ---
-set PYTHON_EXE=python
-where python >nul 2>nul
-if %errorlevel% neq 0 (
-    if exist C:\Python27\python.exe (
-        set PYTHON_EXE=C:\Python27\python.exe
+REM Prioridad: 1) py -2 (Python Launcher, forzando Python 2.7)
+REM            2) python (si "python" del PATH ya es 2.7)
+REM            3) C:\Python27\python.exe (ruta fija de respaldo)
+set PYTHON_EXE=
+py -2 -c "1" >nul 2>nul
+if %errorlevel%==0 (
+    set PYTHON_EXE=py -2
+) else (
+    where python >nul 2>nul
+    if %errorlevel%==0 (
+        set PYTHON_EXE=python
     ) else (
-        echo !!! Error: No se encontro Python en el PATH ni en C:\Python27 !!!
-        pause
-        goto :eof
+        if exist C:\Python27\python.exe (
+            set PYTHON_EXE=C:\Python27\python.exe
+        ) else (
+            echo !!! Error: No se encontro Python 2.7 ^(ni "py -2", ni "python", ni C:\Python27^) !!!
+            pause
+            goto :eof
+        )
     )
 )
 
