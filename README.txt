@@ -3,7 +3,7 @@
               COMO JUGAR CADA JUEGO DEL ECOSISTEMA BRICKSCRIPT
 ================================================================================
 
-#Video integración: https://drive.google.com/file/d/1bJhFJ0Il98ZdekvJ_zqoC52ck0swTqpn/view?usp=sharing
+#Video integración: https://drive.google.com/file/d/1toWM8IZSF-QBTiRPtZm7YQ0mCI4mFzAh/view?usp=sharing
 
 Este documento explica COMO JUGAR cada uno de los 5 juegos incluidos en el
 proyecto: los originales, sus versiones remake, y el juego nuevo de tanques.
